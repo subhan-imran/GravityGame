@@ -1,6 +1,6 @@
 # Add Phase 1 spherical gravity, surface movement, and smooth camera
 
-Target: `main`  
+Target: `main`
 Branch: `codex/phase-1-spherical-gravity`
 
 The starter project had no player or gravity implementation. This change adds constant gravity toward an assigned planet, camera-relative movement on its tangent plane, local-up Rigidbody alignment, grounded jumping with a short input buffer, and reduced airborne steering. A smooth mouse-orbit camera carries its heading around the sphere and clamps against the planet to avoid clipping through it.
