@@ -3,6 +3,8 @@ using System.Reflection;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 using Object = UnityEngine.Object;
 
 namespace GravityGame.Editor
@@ -62,6 +64,30 @@ namespace GravityGame.Editor
             sphere.transform.localScale = Vector3.one * radius * 2f;
             sphere.GetComponent<Renderer>().sharedMaterial = Material(name, color);
             var planet = sphere.AddComponent<PlanetGravity>();
+            planet.influenceHeight = 6f;
+            var boundaryMaterial = Material(name + "GravityBoundary", Color.Lerp(color, Color.white, 0.55f), true);
+            for (int plane = 0; plane < 3; plane++)
+            {
+                var ring = new GameObject(name + " gravity boundary " + plane, typeof(LineRenderer));
+                ring.transform.SetParent(sphere.transform, false);
+                var line = ring.GetComponent<LineRenderer>();
+                line.useWorldSpace = false;
+                line.loop = true;
+                line.widthMultiplier = 0.035f;
+                line.sharedMaterial = boundaryMaterial;
+                line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                line.receiveShadows = false;
+                line.positionCount = 128;
+                float localRadius = (radius + planet.influenceHeight) / (radius * 2f);
+                for (int point = 0; point < line.positionCount; point++)
+                {
+                    float angle = point * Mathf.PI * 2f / line.positionCount;
+                    float x = Mathf.Cos(angle) * localRadius;
+                    float y = Mathf.Sin(angle) * localRadius;
+                    line.SetPosition(point, plane == 0 ? new Vector3(x, y, 0f)
+                        : plane == 1 ? new Vector3(x, 0f, y) : new Vector3(0f, x, y));
+                }
+            }
             for (int i = 0; i < 28; i++)
             {
                 float y = 1f - 2f * (i + 0.5f) / 28f;
@@ -78,14 +104,14 @@ namespace GravityGame.Editor
             return planet;
         }
 
-        private static Material Material(string name, Color color)
+        private static Material Material(string name, Color color, bool unlit = false)
         {
             const string folder = "Assets/Materials";
             if (!AssetDatabase.IsValidFolder(folder)) AssetDatabase.CreateFolder("Assets", "Materials");
             string path = folder + "/TwoPlanets" + name + ".mat";
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (material != null) return material;
-            material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            material = new Material(Shader.Find(unlit ? "Universal Render Pipeline/Unlit" : "Universal Render Pipeline/Lit"));
             material.SetColor("_BaseColor", color);
             AssetDatabase.CreateAsset(material, path);
             return material;
@@ -100,49 +126,96 @@ namespace GravityGame.Editor
             var home = player.gravitySources[0];
             var moon = player.gravitySources[1];
             var body = player.GetComponent<Rigidbody>();
+            Vector3 spawn = body.position;
+            Quaternion spawnRotation = body.rotation;
             var flags = BindingFlags.Instance | BindingFlags.NonPublic;
-            typeof(SphericalPlayer).GetMethod("Awake", flags).Invoke(player, null);
-            MethodInfo step = typeof(SphericalPlayer).GetMethod("FixedUpdate", flags);
-            MethodInfo cameraStep = typeof(PlanetCamera).GetMethod("LateUpdate", flags);
-            SimulationMode previousMode = Physics.simulationMode;
+            var awake = typeof(SphericalPlayer).GetMethod("Awake", flags);
+            awake.Invoke(player, null);
+            var step = typeof(SphericalPlayer).GetMethod("FixedUpdate", flags);
+            var update = typeof(SphericalPlayer).GetMethod("Update", flags);
+            var cameraStep = typeof(PlanetCamera).GetMethod("LateUpdate", flags);
+            var previousMode = Physics.simulationMode;
+            var previousInputMode = InputSystem.settings.updateMode;
+            const string editInputFlag = "RUN_PLAYER_UPDATES_IN_EDIT_MODE";
+            var isFeatureEnabled = typeof(InputSettings).GetMethod("IsFeatureEnabled", flags);
+            bool previousEditInput = (bool)isFeatureEnabled.Invoke(InputSystem.settings, new object[] { editInputFlag });
+            var previousKeyboard = Keyboard.current;
+            Keyboard keyboard = null;
+            bool sawSpace = false;
+            bool previousSpace = false;
+            Vector3 previousVelocity = Vector3.zero;
             try
             {
                 Physics.simulationMode = SimulationMode.Script;
+                InputSystem.settings.updateMode = InputSettings.UpdateMode.ProcessEventsManually;
+                // Button edge events need player update counters; editor-only updates do not advance device counters.
+                InputSystem.settings.SetInternalFeatureFlag(editInputFlag, true);
+                keyboard = InputSystem.AddDevice<Keyboard>();
+                keyboard.MakeCurrent();
+                SetKeys();
                 Step(100);
                 Require(player.IsGrounded && player.planet == home, "Initial landing");
-                Require(player.TryTransfer(), "Outbound launch");
-                Vector3 before = player.GravityUp;
+                Require(Vector3.Distance(home.transform.position, moon.transform.position) >
+                    home.Radius + home.influenceHeight + moon.Radius + moon.influenceHeight, "Separate gravity fields with a space gap");
+                Require(home.AccelerationAt(home.transform.position + Vector3.up * (home.Radius + home.influenceHeight + 0.1f)) == Vector3.zero,
+                    "Zero force outside a gravity field");
+
+                SetKeys(Key.Space);
                 Step(1);
-                Require(Vector3.Angle(before, player.GravityUp) <= player.gravityTurnSpeed * Time.fixedDeltaTime + 0.1f, "Bounded gravity rotation");
-                Step(250);
-                Require(player.planet == moon && player.IsGrounded, "Outbound landing");
+                SetKeys();
+                float normalPeak = 0f;
+                for (int i = 0; i < 150; i++)
+                {
+                    Step(1);
+                    normalPeak = Mathf.Max(normalPeak, home.SurfaceDistance(body.position));
+                }
+                Require(normalPeak > 2.5f && normalPeak < home.influenceHeight && player.IsGrounded && player.planet == home,
+                    "Normal jump stays inside home gravity");
+                SetKeys(Key.RightShift, Key.Space);
+                Step(1);
+                Require(Vector3.Dot(body.linearVelocity, player.GravityUp) < 12f, "Shift without a run-up gives a normal jump");
+                SetKeys();
+                Step(150);
+                SetKeys(Key.W);
+                Step(30);
+                float walkingSpeed = Vector3.ProjectOnPlane(body.linearVelocity, player.GravityUp).magnitude;
+                SetKeys(Key.W, Key.RightShift);
+                Step(30);
+                float runningSpeed = Vector3.ProjectOnPlane(body.linearVelocity, player.GravityUp).magnitude;
+                Require(walkingSpeed > 5f && runningSpeed > walkingSpeed + 4f, "Right Shift increases actual running speed");
+
+                // Reproduce a player-controlled run-up from the scene's starting position.
+                SetKeys();
+                body.position = spawn;
+                body.rotation = spawnRotation;
+                player.planet = home;
+                awake.Invoke(player, null);
+                player.Respawn();
+                Physics.SyncTransforms();
+                Step(50);
+                int countBeforeFlight = player.RespawnCount;
+                SetKeys(Key.W, Key.LeftShift);
+                Step(40);
+                Debug.Log("RUN_SPEED_CHECK: walk=" + walkingSpeed + " rightShift=" + runningSpeed +
+                    " leftShift=" + Vector3.ProjectOnPlane(body.linearVelocity, player.GravityUp).magnitude);
+                Require(Vector3.ProjectOnPlane(body.linearVelocity, player.GravityUp).magnitude > player.speed + 4f,
+                    "Left Shift increases actual running speed");
+                SetKeys(Key.W, Key.LeftShift, Key.Space);
+                Step(1);
+                for (int i = 0; i < 5 && Vector3.Dot(body.linearVelocity, player.GravityUp) <= 15f; i++) Step(1);
+                Require(Vector3.Dot(body.linearVelocity, player.GravityUp) > 15f, "Running jump is higher than a normal jump");
+                // Release every key: the successful crossing must come from takeoff momentum.
+                SetKeys();
+                for (int i = 0; i < 450 && !(player.IsGrounded && player.planet == moon); i++) Step(1);
+                Debug.Log("RUN_JUMP_FLIGHT: position=" + body.position + " velocity=" + body.linearVelocity +
+                    " planet=" + player.planet.name + " space=" + sawSpace + " respawns=" + (player.RespawnCount - countBeforeFlight));
+                Require(sawSpace && player.planet == moon && player.IsGrounded && player.RespawnCount == countBeforeFlight,
+                    "Run and jump escapes, coasts through space, enters the next field and lands without a direct launch");
+                Step(50); // Let the gradual orientation turn settle before checking the landing checkpoint.
                 Require(Mathf.Abs(Vector3.Distance(body.position, moon.transform.position) - 13f) < 0.2f, "Moon surface radius");
                 player.Respawn();
                 Require(player.planet == moon && body.linearVelocity.sqrMagnitude < 0.001f, "Moon checkpoint and velocity reset");
                 Step(30);
-                Require(player.TryTransfer(), "Return launch");
-                Step(250);
-                Require(player.planet == home && player.IsGrounded, "Return landing");
-
-                // In the overlap, a two-unit advantage must not cross the three-unit switch margin.
-                Vector3 route = (moon.transform.position - home.transform.position).normalized;
-                float boundary = (Vector3.Distance(home.transform.position, moon.transform.position) + home.Radius - moon.Radius) * 0.5f;
-                player.SwitchPlanet(moon);
-                body.position = home.transform.position + route * (boundary - 1f);
-                body.linearVelocity = Vector3.zero;
-                Physics.SyncTransforms();
-                Step(2);
-                Require(player.planet == moon, "Gravity boundary hysteresis");
-
-                // An airborne player entering the other field switches without pressing E.
-                player.SwitchPlanet(home);
-                body.position = moon.transform.position - route * (moon.Radius + 3f);
-                body.linearVelocity = Vector3.zero;
-                Physics.SyncTransforms();
-                Step(2);
-                Require(player.planet == moon, "Automatic gravity capture");
-                Step(250);
-                Require(player.IsGrounded, "Automatic capture landing");
 
                 int count = player.RespawnCount;
                 body.position = new Vector3(70f, 46f, 0f);
@@ -160,19 +233,46 @@ namespace GravityGame.Editor
                 Physics.SyncTransforms();
                 player.Respawn();
                 cameraStep.Invoke(camera, null);
-                Require(camera.planet == moon && Vector3.Distance(camera.transform.position, body.position) < 15f, "Camera respawn reset");
-                foreach (var source in player.gravitySources)
-                    Require(Vector3.Distance(camera.transform.position, source.transform.position) > source.Radius, "Camera outside both planets");
-                Debug.Log("TWO_PLANET_VALIDATION_PASSED: round trip, bounded gravity turn, boundary hysteresis, automatic capture, checkpoint, timeout/distance respawn, camera reset and obstruction.");
+                Require(camera.planet == moon && Vector3.Distance(camera.transform.position, body.position) < 15f, "Immediate camera respawn reset");
+                Debug.Log("TWO_PLANET_VALIDATION_PASSED: both Shift keys, normal/run-up jumps, finite fields, zero-gravity momentum, ballistic capture and landing, checkpoints, timeout/distance respawn, camera clearance/reset.");
             }
-            finally { Physics.simulationMode = previousMode; }
+            finally
+            {
+                if (keyboard != null) InputSystem.RemoveDevice(keyboard);
+                if (previousKeyboard != null && previousKeyboard.added) previousKeyboard.MakeCurrent();
+                InputSystem.settings.updateMode = previousInputMode;
+                InputSystem.settings.SetInternalFeatureFlag(editInputFlag, previousEditInput);
+                Physics.simulationMode = previousMode;
+            }
+
+            void SetKeys(params Key[] keys)
+            {
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(keys));
+                InputSystem.Update();
+                update.Invoke(player, null);
+            }
 
             void Step(int count)
             {
                 for (int i = 0; i < count; i++)
                 {
+                    var previousPlanet = player.planet;
+                    Vector3 upBefore = player.GravityUp;
+                    int respawns = player.RespawnCount;
                     step.Invoke(player, null);
+                    if (player.planet != previousPlanet && player.RespawnCount == respawns)
+                        Require(player.planet.Contains(body.position), "Switch only upon entering a field");
+                    if (player.RespawnCount == respawns)
+                        Require(Vector3.Angle(upBefore, player.GravityUp) <= player.gravityTurnSpeed * Time.fixedDeltaTime + 0.2f, "Bounded gravity rotation");
                     Physics.Simulate(Time.fixedDeltaTime);
+                    if (!player.IsInGravityField)
+                    {
+                        sawSpace = true;
+                        if (previousSpace && player.RespawnCount == respawns)
+                            Require(Vector3.Distance(previousVelocity, body.linearVelocity) < 0.01f, "Momentum preserved outside every gravity field");
+                    }
+                    previousSpace = !player.IsInGravityField;
+                    previousVelocity = body.linearVelocity;
                     cameraStep.Invoke(camera, null);
                     Require(float.IsFinite(camera.transform.position.x) && float.IsFinite(player.GravityUp.x), "Finite camera and gravity");
                     foreach (var source in player.gravitySources)
@@ -180,7 +280,6 @@ namespace GravityGame.Editor
                 }
             }
         }
-
         private static void Require(bool condition, string message)
         {
             if (!condition) throw new Exception("Two planet validation failed: " + message);
