@@ -1,4 +1,23 @@
-# GravityGame — Two Planet Demo
+# GravityGame — Mobile Prototype
+
+Open `Assets/Scenes/MobilePrototype.unity` and press Play. The separate mobile scene preserves TwoPlanets and PhaseOne. Use landscape orientation; mobile runtime supports both landscape directions and targets 60 FPS (device performance still needs measurement).
+
+- **Left joystick:** partial movement walks, pushing near the edge runs automatically. A dead zone prevents small accidental movement; a separate run button is unnecessary.
+- **Jump:** tap the large right button. It turns gold and reads **HIGH JUMP** once a real run-up is ready. The jump triggers on touch-down; holding it does not repeat jumps. Movement, jump, and look can use independent fingers.
+- **Look:** drag the free right-side area. Assistance follows forward movement and frames a planet ahead during flight, without changing gravity or takeoff momentum. A manual drag temporarily overrides assistance.
+- **Pause / Resume:** large touch buttons freeze motion and the loss countdown. Focus loss or app interruption pauses and requires an explicit resume. Held touches are cleared to prevent stuck movement or camera motion.
+- **Lost in space / Try again:** missing all gravity fields still causes defeat. The retry button returns to the last safe landing; there is no automatic rescue.
+
+Keyboard WASD/arrows, Shift and Space remain for development. Escape toggles pause; the mouse can drag the joystick and look area. R retries while playing or defeated; paused retries use the menu. The mobile scene keeps the pointer unlocked. Desktop scenes retain their original mouse control.
+
+The UI uses a scaling Canvas, safe-area insets, large mesh-drawn circular controls, and text that does not intercept touch raycasts. `MobileTouchControl` tracks each initiating pointer independently; `MobileGameUI` owns UI state and restores the clock when it leaves the scene. No new packages are needed. Use **GravityGame > Create Mobile Prototype** to recreate the scene (it asks to save open edits first). For your own phone build, enable MobilePrototype in your Android/iOS Build Profile; the existing build scene list is preserved.
+
+Validation: run Unity against a temporary or closed project with `-batchmode -nographics -projectPath <project> -executeMethod GravityGame.Editor.MobileDemo.ValidateAll -quit -logFile <log>`. This includes all desktop physics checks, then validates joystick walk/run thresholds, independent pointers, jump/look input, authored UI order, pause/resume, interruptions, safe-area anchors, loss/retry and global clock cleanup. For actual rendered UI raycasts and saved-scene reloading, run `-batchmode -projectPath <project> -executeMethod GravityGame.Editor.MobilePlayModeChecks.Run -logFile <log>` without `-quit`; this run exits itself. It explicitly renders the Canvas because batch editors do not draw a Game view by default. It also captures gameplay, pause, and loss previews in Logs. Actual multi-touch feel, text readability, Android/iOS lifecycle behavior, performance, and heat/battery use must be checked on real devices before release.
+
+The optional `MobileDemo.BuildAndroid` batch entry point requires `-buildTarget Android` and an installed Android toolchain. Run it on a temporary copy: it configures that copy for a development ARM64/OpenGL ES 3 APK (`com.gravitygame.prototype`, target SDK 36) and writes `Builds/GravityGame-Prototype.apk`. The project's experimental `com.unity.pipeline` 0.9.0-exp.1 package currently throws a desktop-subtarget exception in its Android build preprocessor. Exclude that unused live-reload dependency from the temporary copy's manifest before starting the Android editor, or update it to a compatible version. The actual project's manifest is preserved. This is not a store release. For iOS, build on macOS and enable both landscape orientations in Player Settings; no iOS build or physical-device test has been performed here.
+
+## Desktop prototypes
+### Two Planet Demo
 
 Unity **6000.5.9f1**, Universal Render Pipeline, Input System.
 

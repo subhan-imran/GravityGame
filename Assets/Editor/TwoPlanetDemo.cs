@@ -73,7 +73,7 @@ namespace GravityGame.Editor
                 var line = ring.GetComponent<LineRenderer>();
                 line.useWorldSpace = false;
                 line.loop = true;
-                line.widthMultiplier = 0.035f;
+                line.widthMultiplier = 0.035f / (radius * 2f);
                 line.sharedMaterial = boundaryMaterial;
                 line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 line.receiveShadows = false;

@@ -21,10 +21,14 @@ namespace GravityGame
         [Min(0.1f)] public float lostInSpaceDelay = 3f;
         [FormerlySerializedAs("respawnDistance"), Min(1f)] public float lossDistance = 120f;
         public bool showTravelHelp;
+        public bool useMobileUI;
         public bool IsGrounded { get; private set; }
         public Vector3 GravityUp { get; private set; } = Vector3.up;
         public int RespawnCount { get; private set; }
         public bool HasLost { get; private set; }
+        public bool IsPaused { get; private set; }
+        public Vector2 MovementInput => input;
+        public Vector3 Velocity => body != null ? body.linearVelocity : Vector3.zero;
         public float SpaceTimeRemaining => Mathf.Max(0f, lostInSpaceDelay - outsideTime);
         public bool IsInGravityField { get; private set; }
         public bool IsRunning => runRequested && input.sqrMagnitude > 0.01f;
@@ -37,6 +41,8 @@ namespace GravityGame
         private float jumpBuffer;
         private float groundingLock;
         private bool runRequested;
+        private Vector2 touchMovement;
+        private bool touchRunning;
         private float outsideTime;
         private PlanetGravity checkpointPlanet;
         private Vector3 checkpointLocalPosition;
@@ -60,25 +66,66 @@ namespace GravityGame
             var keyboard = Keyboard.current;
             input = Vector2.zero;
             runRequested = false;
+            if (IsPaused || HasLost)
+            {
+                if (!IsPaused && keyboard != null && keyboard.rKey.wasPressedThisFrame) Respawn();
+                return;
+            }
+            ApplyTouchMovement();
             if (keyboard == null) return;
             if (keyboard.rKey.wasPressedThisFrame)
             {
                 Respawn();
                 return;
             }
-            if (HasLost) return;
-            input.x = (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed ? 1 : 0)
+            Vector2 keyboardMove = Vector2.zero;
+            keyboardMove.x = (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed ? 1 : 0)
                     - (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed ? 1 : 0);
-            input.y = (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed ? 1 : 0)
+            keyboardMove.y = (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed ? 1 : 0)
                     - (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed ? 1 : 0);
-            input = Vector2.ClampMagnitude(input, 1f);
-            runRequested = keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
-            if (keyboard.spaceKey.wasPressedThisFrame) jumpBuffer = 0.15f;
+            if (keyboardMove.sqrMagnitude > 0f)
+            {
+                input = Vector2.ClampMagnitude(keyboardMove, 1f);
+                runRequested = keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
+            }
+            if (keyboard.spaceKey.wasPressedThisFrame) RequestJump();
+        }
+
+        public void SetTouchMovement(Vector2 value)
+        {
+            touchMovement = HasLost || IsPaused ? Vector2.zero : Vector2.ClampMagnitude(value, 1f);
+            ApplyTouchMovement();
+        }
+
+        private void ApplyTouchMovement()
+        {
+            float magnitude = touchMovement.magnitude;
+            touchRunning = magnitude >= (touchRunning ? 0.75f : 0.85f);
+            input = touchRunning ? touchMovement.normalized : touchMovement;
+            runRequested = touchRunning;
+        }
+
+        public void RequestJump()
+        {
+            if (!HasLost && !IsPaused) jumpBuffer = 0.15f;
+        }
+
+        public void ClearInput()
+        {
+            input = touchMovement = Vector2.zero;
+            runRequested = touchRunning = false;
+            jumpBuffer = 0f;
+        }
+
+        public void SetPaused(bool paused)
+        {
+            IsPaused = paused;
+            ClearInput();
         }
 
         private void FixedUpdate()
         {
-            if (HasLost) return;
+            if (HasLost || IsPaused) return;
             float dt = Time.fixedDeltaTime;
             groundingLock = Mathf.Max(0f, groundingLock - dt);
             PlanetGravity closest = ClosestPlanet(body.position, true);
@@ -184,6 +231,7 @@ namespace GravityGame
         {
             if (HasLost) return;
             HasLost = true;
+            ClearInput();
             IsGrounded = IsInGravityField = false;
             input = Vector2.zero;
             runRequested = false;
@@ -199,6 +247,7 @@ namespace GravityGame
         {
             if (body == null || checkpointPlanet == null) return;
             HasLost = false;
+            ClearInput();
             body.isKinematic = false;
             planet = checkpointPlanet;
             body.position = planet.transform.TransformPoint(checkpointLocalPosition);
@@ -217,11 +266,12 @@ namespace GravityGame
             IsGrounded = false;
             IsInGravityField = planet.Contains(body.position);
             RespawnCount++;
-            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.lockState = useMobileUI || Application.isMobilePlatform ? CursorLockMode.None : CursorLockMode.Locked;
         }
 
         private void OnGUI()
         {
+            if (useMobileUI) return;
             if (HasLost)
             {
                 var panel = new Rect((Screen.width - 440f) * 0.5f, (Screen.height - 180f) * 0.5f, 440f, 180f);
