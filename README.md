@@ -2,6 +2,8 @@
 
 Open `Assets/Scenes/MobilePrototype.unity` and press Play. The separate mobile scene preserves TwoPlanets and PhaseOne. Use landscape orientation; mobile runtime supports both landscape directions and targets 60 FPS (device performance still needs measurement).
 
+An Android test APK is available locally at `Builds/MobilePrototype/GravityGame-Prototype.apk` (Android 8.0+, ARM64, about 43 MB). The development build completed successfully and its APK signature was verified. Gameplay, pause, and loss previews are in the same folder. These generated artifacts are ignored by Git; physical-phone testing is still outstanding.
+
 - **Left joystick:** partial movement walks, pushing near the edge runs automatically. A dead zone prevents small accidental movement; a separate run button is unnecessary.
 - **Jump:** tap the large right button. It turns gold and reads **HIGH JUMP** once a real run-up is ready. The jump triggers on touch-down; holding it does not repeat jumps. Movement, jump, and look can use independent fingers.
 - **Look:** drag the free right-side area. Assistance follows forward movement and frames a planet ahead during flight, without changing gravity or takeoff momentum. A manual drag temporarily overrides assistance.
