@@ -6939,7 +6939,7 @@ MonoBehaviour:
   gravityTurnSpeed: 360
   switchHysteresis: 3
   lostInSpaceDelay: 3
-  respawnDistance: 120
+  lossDistance: 120
   showTravelHelp: 1
 --- !u!54 &1919425085
 Rigidbody:

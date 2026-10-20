@@ -41,9 +41,11 @@ namespace GravityGame
                 }
             }
             if (planet == null) return;
-            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            bool allowLook = player == null || !player.HasLost;
+            if (!allowLook) Cursor.lockState = CursorLockMode.None;
+            if (allowLook && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
                 Cursor.lockState = CursorLockMode.None;
-            if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+            if (allowLook && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
                 Cursor.lockState = CursorLockMode.Locked;
 
             Vector3 targetUp = player != null ? target.up : planet.UpAt(target.position);
@@ -59,7 +61,7 @@ namespace GravityGame
             }
             heading = Quaternion.FromToRotation(previousUp, up) * heading;
             previousUp = up;
-            Vector2 look = Mouse.current != null && Cursor.lockState == CursorLockMode.Locked
+            Vector2 look = allowLook && Mouse.current != null && Cursor.lockState == CursorLockMode.Locked
                 ? Mouse.current.delta.ReadValue() : Vector2.zero;
             heading = Quaternion.AngleAxis(look.x * sensitivity, up) * heading;
             pitch = Mathf.Clamp(pitch - look.y * sensitivity, -70f, 65f);

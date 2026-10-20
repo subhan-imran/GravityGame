@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Serialization;
 
 namespace GravityGame
 {
@@ -18,11 +19,13 @@ namespace GravityGame
         [Min(1f)] public float gravityTurnSpeed = 360f;
         [Min(0.1f)] public float switchHysteresis = 3f;
         [Min(0.1f)] public float lostInSpaceDelay = 3f;
-        [Min(1f)] public float respawnDistance = 120f;
+        [FormerlySerializedAs("respawnDistance"), Min(1f)] public float lossDistance = 120f;
         public bool showTravelHelp;
         public bool IsGrounded { get; private set; }
         public Vector3 GravityUp { get; private set; } = Vector3.up;
         public int RespawnCount { get; private set; }
+        public bool HasLost { get; private set; }
+        public float SpaceTimeRemaining => Mathf.Max(0f, lostInSpaceDelay - outsideTime);
         public bool IsInGravityField { get; private set; }
         public bool IsRunning => runRequested && input.sqrMagnitude > 0.01f;
         public bool RunningJumpReady => body != null && IsGrounded && IsRunning &&
@@ -58,6 +61,12 @@ namespace GravityGame
             input = Vector2.zero;
             runRequested = false;
             if (keyboard == null) return;
+            if (keyboard.rKey.wasPressedThisFrame)
+            {
+                Respawn();
+                return;
+            }
+            if (HasLost) return;
             input.x = (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed ? 1 : 0)
                     - (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed ? 1 : 0);
             input.y = (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed ? 1 : 0)
@@ -65,11 +74,11 @@ namespace GravityGame
             input = Vector2.ClampMagnitude(input, 1f);
             runRequested = keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
             if (keyboard.spaceKey.wasPressedThisFrame) jumpBuffer = 0.15f;
-            if (keyboard.rKey.wasPressedThisFrame) Respawn();
         }
 
         private void FixedUpdate()
         {
+            if (HasLost) return;
             float dt = Time.fixedDeltaTime;
             groundingLock = Mathf.Max(0f, groundingLock - dt);
             PlanetGravity closest = ClosestPlanet(body.position, true);
@@ -77,9 +86,9 @@ namespace GravityGame
             {
                 outsideTime += dt;
                 PlanetGravity nearest = ClosestPlanet(body.position, false);
-                if (outsideTime >= lostInSpaceDelay || (nearest != null && nearest.SurfaceDistance(body.position) > respawnDistance))
+                if (outsideTime >= lostInSpaceDelay || (nearest != null && nearest.SurfaceDistance(body.position) > lossDistance))
                 {
-                    Respawn();
+                    LoseInSpace();
                     return;
                 }
             }
@@ -171,9 +180,26 @@ namespace GravityGame
             checkpointLocalRotation = Quaternion.Inverse(planet.transform.rotation) * body.rotation;
         }
 
+        private void LoseInSpace()
+        {
+            if (HasLost) return;
+            HasLost = true;
+            IsGrounded = IsInGravityField = false;
+            input = Vector2.zero;
+            runRequested = false;
+            jumpBuffer = 0f;
+            body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+            body.isKinematic = true;
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+
         public void Respawn()
         {
             if (body == null || checkpointPlanet == null) return;
+            HasLost = false;
+            body.isKinematic = false;
             planet = checkpointPlanet;
             body.position = planet.transform.TransformPoint(checkpointLocalPosition);
             body.rotation = planet.transform.rotation * checkpointLocalRotation;
@@ -191,12 +217,24 @@ namespace GravityGame
             IsGrounded = false;
             IsInGravityField = planet.Contains(body.position);
             RespawnCount++;
+            Cursor.lockState = CursorLockMode.Locked;
         }
 
         private void OnGUI()
         {
+            if (HasLost)
+            {
+                var panel = new Rect((Screen.width - 440f) * 0.5f, (Screen.height - 180f) * 0.5f, 440f, 180f);
+                GUI.Box(panel, "");
+                var titleStyle = new GUIStyle(GUI.skin.label) { fontSize = 28, alignment = TextAnchor.MiddleCenter };
+                GUI.Label(new Rect(panel.x, panel.y + 16f, panel.width, 42f), "Lost in space", titleStyle);
+                var messageStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter };
+                GUI.Label(new Rect(panel.x, panel.y + 62f, panel.width, 32f), "You didn't reach another planet. Try a different jump.", messageStyle);
+                if (GUI.Button(new Rect(panel.x + 70f, panel.y + 112f, 300f, 42f), "Retry from last landing (R)")) Respawn();
+                return;
+            }
             if (!showTravelHelp) return;
-            string name = IsInGravityField && planet != null ? planet.name + " gravity" : "Space - coasting";
+            string name = IsInGravityField && planet != null ? planet.name + " gravity" : "Space - " + SpaceTimeRemaining.ToString("0.0") + "s to reach gravity";
             string jumpStatus = IsGrounded ? (RunningJumpReady ? "High jump ready - press Space" : "Build speed with Shift for a high jump") : "Airborne - carry your momentum";
             GUI.Box(new Rect(16, 16, 600, 132), "TWO PLANET DEMO  |  " + name +
                 "\nWASD / arrows: move   Hold Shift: run   Space: jump   Mouse: orbit" +

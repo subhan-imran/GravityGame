@@ -221,20 +221,35 @@ namespace GravityGame.Editor
                 body.position = new Vector3(70f, 46f, 0f);
                 body.linearVelocity = Vector3.zero;
                 Physics.SyncTransforms();
-                Step(Mathf.CeilToInt(player.lostInSpaceDelay / Time.fixedDeltaTime) + 5);
-                Require(player.RespawnCount == count + 1 && player.planet == moon, "Lost-in-space timeout and checkpoint");
+                Vector3 missedJumpPosition = body.position;
+                Step(Mathf.CeilToInt(player.lostInSpaceDelay / Time.fixedDeltaTime) - 2);
+                Require(!player.HasLost && player.SpaceTimeRemaining > 0f && player.SpaceTimeRemaining < 0.1f,
+                    "Grace countdown before losing");
+                Step(5);
+                Require(player.HasLost && body.isKinematic && player.RespawnCount == count &&
+                    Vector3.Distance(body.position, missedJumpPosition) < 0.01f, "Timeout loses without automatic respawn");
+                SetKeys(Key.W, Key.LeftShift, Key.Space);
+                Step(20);
+                Require(player.HasLost && player.RespawnCount == count && Vector3.Distance(body.position, missedJumpPosition) < 0.01f,
+                    "Loss persists and ignores movement/jump input");
+                SetKeys(Key.R);
+                Require(!player.HasLost && !body.isKinematic && player.RespawnCount == count + 1 && player.planet == moon,
+                    "R explicitly retries from the landing checkpoint");
+                SetKeys();
                 Step(30);
                 body.position = Vector3.one * 500f;
                 body.linearVelocity = Vector3.one * 100f;
                 Physics.SyncTransforms();
                 Step(1);
-                Require(player.RespawnCount == count + 2 && body.linearVelocity.magnitude < 1f, "Far-distance respawn");
+                Require(player.HasLost && player.RespawnCount == count + 1, "Far-distance loss without automatic respawn");
+                player.Respawn(); // The Retry button uses this same explicit recovery path.
+                Require(!player.HasLost && player.RespawnCount == count + 2, "Explicit retry clears defeat");
                 body.position = Vector3.one * 250f;
                 Physics.SyncTransforms();
                 player.Respawn();
                 cameraStep.Invoke(camera, null);
                 Require(camera.planet == moon && Vector3.Distance(camera.transform.position, body.position) < 15f, "Immediate camera respawn reset");
-                Debug.Log("TWO_PLANET_VALIDATION_PASSED: both Shift keys, normal/run-up jumps, finite fields, zero-gravity momentum, ballistic capture and landing, checkpoints, timeout/distance respawn, camera clearance/reset.");
+                Debug.Log("TWO_PLANET_VALIDATION_PASSED: running jumps, ballistic landing, grace countdown, persistent timeout/distance loss, disabled defeat controls, explicit keyboard/button retry, camera clearance/reset.");
             }
             finally
             {
@@ -268,10 +283,10 @@ namespace GravityGame.Editor
                     if (!player.IsInGravityField)
                     {
                         sawSpace = true;
-                        if (previousSpace && player.RespawnCount == respawns)
+                        if (previousSpace && !player.HasLost && player.RespawnCount == respawns)
                             Require(Vector3.Distance(previousVelocity, body.linearVelocity) < 0.01f, "Momentum preserved outside every gravity field");
                     }
-                    previousSpace = !player.IsInGravityField;
+                    previousSpace = !player.IsInGravityField && !player.HasLost;
                     previousVelocity = body.linearVelocity;
                     cameraStep.Invoke(camera, null);
                     Require(float.IsFinite(camera.transform.position.x) && float.IsFinite(player.GravityUp.x), "Finite camera and gravity");
