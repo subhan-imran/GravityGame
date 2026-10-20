@@ -8,17 +8,32 @@ namespace GravityGame
     {
         public PlanetGravity planet;
         public Transform movementCamera;
+        public PlanetGravity[] gravitySources = new PlanetGravity[0];
         [Min(0f)] public float speed = 7f;
         [Min(0f)] public float acceleration = 35f;
         [Min(0f)] public float jumpHeight = 2f;
         [Range(0f, 1f)] public float airControl = 0.3f;
+        [Min(1f)] public float gravityTurnSpeed = 360f;
+        [Min(0.1f)] public float switchHysteresis = 3f;
+        [Min(0f)] public float transferSpeed = 22f;
+        [Min(1f)] public float transferRange = 80f;
+        [Min(0.1f)] public float lostInSpaceDelay = 3f;
+        [Min(1f)] public float respawnDistance = 120f;
+        public bool showTravelHelp;
         public bool IsGrounded { get; private set; }
+        public Vector3 GravityUp { get; private set; } = Vector3.up;
+        public int RespawnCount { get; private set; }
 
         private Rigidbody body;
         private CapsuleCollider capsule;
         private Vector2 input;
-        private float jumpRequestedUntil = -1f;
-        private float groundedAfter;
+        private float jumpBuffer;
+        private float groundingLock;
+        private float switchLock;
+        private float outsideTime;
+        private PlanetGravity checkpointPlanet;
+        private Vector3 checkpointLocalPosition;
+        private Quaternion checkpointLocalRotation;
 
         private void Awake()
         {
@@ -28,6 +43,8 @@ namespace GravityGame
             body.constraints = RigidbodyConstraints.FreezeRotation;
             body.interpolation = RigidbodyInterpolation.Interpolate;
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            GravityUp = planet != null ? planet.UpAt(body.position) : transform.up;
+            SaveCheckpoint();
         }
 
         private void Update()
@@ -40,42 +57,152 @@ namespace GravityGame
             input.y = (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed ? 1 : 0)
                     - (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed ? 1 : 0);
             input = Vector2.ClampMagnitude(input, 1f);
-            if (keyboard.spaceKey.wasPressedThisFrame) jumpRequestedUntil = Time.time + 0.15f;
+            if (keyboard.spaceKey.wasPressedThisFrame) jumpBuffer = 0.15f;
+            if (keyboard.eKey.wasPressedThisFrame) TryTransfer();
+            if (keyboard.rKey.wasPressedThisFrame) Respawn();
         }
 
         private void FixedUpdate()
         {
+            float dt = Time.fixedDeltaTime;
+            groundingLock = Mathf.Max(0f, groundingLock - dt);
+            switchLock = Mathf.Max(0f, switchLock - dt);
+            PlanetGravity closest = ClosestPlanet(body.position, true);
+            if (closest == null)
+            {
+                outsideTime += dt;
+                PlanetGravity nearest = ClosestPlanet(body.position, false);
+                if (outsideTime >= lostInSpaceDelay || (nearest != null && nearest.SurfaceDistance(body.position) > respawnDistance))
+                {
+                    Respawn();
+                    return;
+                }
+            }
+            else outsideTime = 0f;
+
+            if (closest != null && switchLock <= 0f && (!IsGrounded || planet == null || !planet.Contains(body.position)) &&
+                (planet == null || !planet.Contains(body.position) || closest.SurfaceDistance(body.position) + switchHysteresis < planet.SurfaceDistance(body.position)))
+                SwitchPlanet(closest);
+
             if (planet == null) return;
-            Vector3 up = planet.UpAt(body.position);
-            Quaternion aligned = Quaternion.FromToRotation(body.rotation * Vector3.up, up) * body.rotation;
+            Vector3 radialUp = planet.UpAt(body.position);
+            Quaternion current = body.rotation;
+            Quaternion desiredRotation = Quaternion.FromToRotation(current * Vector3.up, radialUp) * current;
+            Quaternion aligned = Quaternion.RotateTowards(current, desiredRotation, gravityTurnSpeed * dt);
+            GravityUp = aligned * Vector3.up;
             body.MoveRotation(aligned);
 
-            // Probe only the assigned planet so the player's own collider cannot ground it.
-            Vector3 center = transform.TransformPoint(capsule.center);
+            Vector3 center = body.position + body.rotation * Vector3.Scale(capsule.center, transform.lossyScale);
             float halfHeight = capsule.height * Mathf.Abs(transform.lossyScale.y) * 0.5f;
             Collider surface = planet.GetComponent<Collider>();
-            IsGrounded = Time.time >= groundedAfter && surface != null &&
-                surface.Raycast(new Ray(center, -up), out _, halfHeight + 0.15f);
+            IsGrounded = groundingLock <= 0f && surface != null &&
+                Vector3.Dot(body.linearVelocity, radialUp) < 1f &&
+                surface.Raycast(new Ray(center, -radialUp), out _, halfHeight + 0.15f);
+            if (IsGrounded && Vector3.Dot(GravityUp, radialUp) > 0.98f) SaveCheckpoint();
 
             Vector3 forward = Vector3.ProjectOnPlane(movementCamera != null
-                ? movementCamera.forward : aligned * Vector3.forward, up).normalized;
+                ? movementCamera.forward : aligned * Vector3.forward, GravityUp).normalized;
             if (forward.sqrMagnitude < 0.001f) forward = aligned * Vector3.forward;
-            Vector3 right = Vector3.Cross(up, forward).normalized;
+            Vector3 right = Vector3.Cross(GravityUp, forward).normalized;
             Vector3 desired = (forward * input.y + right * input.x) * speed;
-            Vector3 tangentVelocity = Vector3.ProjectOnPlane(body.linearVelocity, up);
-            Vector3 change = Vector3.ClampMagnitude(desired - tangentVelocity,
-                acceleration * (IsGrounded ? 1f : airControl) * Time.fixedDeltaTime);
-            body.AddForce(change, ForceMode.VelocityChange);
-            body.AddForce(planet.AccelerationAt(body.position), ForceMode.Acceleration);
+            Vector3 tangentVelocity = Vector3.ProjectOnPlane(body.linearVelocity, GravityUp);
+            // Preserve launch momentum during a transfer; steering resumes once its frame settles.
+            if (switchLock <= 0f)
+            {
+                Vector3 change = Vector3.ClampMagnitude(desired - tangentVelocity,
+                    acceleration * (IsGrounded ? 1f : airControl) * dt);
+                body.AddForce(change, ForceMode.VelocityChange);
+            }
+            if (planet.Contains(body.position))
+                body.AddForce(-GravityUp * planet.acceleration, ForceMode.Acceleration);
 
-            if (IsGrounded && Time.time <= jumpRequestedUntil)
+            if (IsGrounded && jumpBuffer > 0f)
             {
                 float jumpSpeed = Mathf.Sqrt(2f * planet.acceleration * jumpHeight);
-                body.AddForce(up * (jumpSpeed - Vector3.Dot(body.linearVelocity, up)), ForceMode.VelocityChange);
-                jumpRequestedUntil = -1f;
-                groundedAfter = Time.time + 0.2f;
+                body.AddForce(radialUp * (jumpSpeed - Vector3.Dot(body.linearVelocity, radialUp)), ForceMode.VelocityChange);
+                jumpBuffer = 0f;
+                groundingLock = 0.2f;
                 IsGrounded = false;
             }
+            jumpBuffer = Mathf.Max(0f, jumpBuffer - dt);
+        }
+
+        private PlanetGravity ClosestPlanet(Vector3 position, bool inRangeOnly, PlanetGravity excluded = null)
+        {
+            PlanetGravity best = null;
+            float bestDistance = float.PositiveInfinity;
+            Consider(planet);
+            foreach (var source in gravitySources) Consider(source);
+            return best;
+
+            void Consider(PlanetGravity source)
+            {
+                if (source == null || source == excluded || !source.isActiveAndEnabled || (inRangeOnly && !source.Contains(position))) return;
+                float distance = source.SurfaceDistance(position);
+                if (distance < bestDistance) { best = source; bestDistance = distance; }
+            }
+        }
+
+        public bool TryTransfer()
+        {
+            if (body == null || planet == null || switchLock > 0f) return false;
+            PlanetGravity destination = ClosestPlanet(body.position, false, planet);
+            if (destination == null || destination.SurfaceDistance(body.position) > transferRange) return false;
+            Vector3 direction = (destination.transform.position - body.position).normalized;
+            // Launch only from the facing hemisphere, rather than into the current planet.
+            if (Vector3.Dot(direction, planet.UpAt(body.position)) < 0.25f) return false;
+            SwitchPlanet(destination);
+            body.linearVelocity = direction * transferSpeed;
+            switchLock = 1f;
+            groundingLock = 0.25f;
+            return true;
+        }
+
+        public void SwitchPlanet(PlanetGravity destination)
+        {
+            if (destination == null || destination == planet) return;
+            planet = destination;
+            IsGrounded = false;
+            groundingLock = 0.1f;
+            jumpBuffer = 0f;
+        }
+
+        private void SaveCheckpoint()
+        {
+            if (planet == null) return;
+            checkpointPlanet = planet;
+            checkpointLocalPosition = planet.transform.InverseTransformPoint(body.position + planet.UpAt(body.position) * 0.1f);
+            checkpointLocalRotation = Quaternion.Inverse(planet.transform.rotation) * body.rotation;
+        }
+
+        public void Respawn()
+        {
+            if (body == null || checkpointPlanet == null) return;
+            planet = checkpointPlanet;
+            body.position = planet.transform.TransformPoint(checkpointLocalPosition);
+            body.rotation = planet.transform.rotation * checkpointLocalRotation;
+            body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+            GravityUp = planet.UpAt(body.position);
+            body.rotation = Quaternion.FromToRotation(body.rotation * Vector3.up, GravityUp) * body.rotation;
+            // R can run between physics steps; make the new pose visible to the camera immediately.
+            transform.SetPositionAndRotation(body.position, body.rotation);
+            Physics.SyncTransforms();
+            input = Vector2.zero;
+            jumpBuffer = switchLock = outsideTime = 0f;
+            groundingLock = 0.15f;
+            IsGrounded = false;
+            RespawnCount++;
+        }
+
+        private void OnGUI()
+        {
+            if (!showTravelHelp) return;
+            string name = planet != null ? planet.name : "Space";
+            GUI.Box(new Rect(16, 16, 530, 92), "TWO PLANET DEMO  |  " + name +
+                "\nWASD / arrows: move   Space: jump   Mouse: orbit" +
+                "\nE: transfer from the side facing the other planet   R: respawn" +
+                "\nEscape: release mouse   Click: capture   Checkpoint: last landing");
         }
     }
 }
