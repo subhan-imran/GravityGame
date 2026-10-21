@@ -2,7 +2,7 @@
 
 Open `Assets/Scenes/MobilePrototype.unity` and press Play. The separate mobile scene preserves TwoPlanets and PhaseOne. Use landscape orientation; mobile runtime supports both landscape directions and targets 60 FPS (device performance still needs measurement).
 
-An Android test APK of the earlier joystick prototype is available locally at `Builds/MobilePrototype/GravityGame-Prototype.apk` (Android 8.0+, ARM64, about 43 MB). Its development build and APK signature were verified; rebuild it to include the new landing-victory feature. Generated artifacts are ignored by Git; physical-phone testing is still outstanding.
+The updated Android test APK, including landing victory, is available locally at `Builds/MobilePrototype/GravityGame-Prototype.apk` (Android 8.0+, ARM64, about 43 MB). Its development build, signature and 16 KB native-library/ZIP alignment were verified. The earlier APK is retained as `GravityGame-Prototype-before-victory.apk` in the same folder. Generated artifacts are ignored by Git; physical-phone testing is still outstanding.
 
 - **Left joystick:** partial movement walks, pushing near the edge runs automatically. A dead zone prevents small accidental movement; a separate run button is unnecessary.
 - **Jump:** tap the large right button. It turns gold and reads **HIGH JUMP** once a real run-up is ready. The jump triggers on touch-down; holding it does not repeat jumps. Movement, jump, and look can use independent fingers.

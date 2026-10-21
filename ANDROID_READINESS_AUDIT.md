@@ -8,7 +8,7 @@ Reviewed 21 October 2026. Unity 6000.5.9f1, URP 17.5.0, Input System 1.20.0.
 
 `com.unity.pipeline` 0.9.0-exp.1 called `GetSubtarget<StandaloneBuildSubtarget>()` for an Android report before checking whether its runtime feature was enabled. Changing Development Build alone cannot avoid that call. The package is an editor automation/live-reload bridge; no game code references it. Removed its direct dependency and used Unity's resolved lock to remove its orphaned dependency and update dependency depth. URP graphics rendering remains installed. This persists across cache regeneration; no Library/PackageCache patch is needed. Removing the package also removes its optional editor/live-reload connection feature.
 
-The isolated Android rebuild passed the formerly failing preprocessor and is being packaged. Final build results and artifact checks are recorded below when complete.
+The isolated Android rebuild completed successfully with `MOBILE_ANDROID_BUILD_PASSED` and process exit code 0. Its final artifact also passed `ANDROID_APK_AUDIT_PASSED`. The main project uses the same corrected manifest and Unity-resolved dependency lock.
 
 ## Build and release findings
 
@@ -48,6 +48,8 @@ Developer verification, account-specific testing requirements and Play pre-launc
 
 ## Device acceptance checks still required
 
+No authorized Android device was available through ADB during this audit. No app was installed on a phone, and no device performance or lifecycle result is claimed.
+
 1. Install on at least a lower-spec supported ARM64 phone and a recent Android phone. Check cold launch, the correct first scene, offline play, repeated wins/losses/retries and fresh launch after Android kills the process.
 2. Use three fingers together; move off each touch target; interrupt while holding controls; lock/unlock; background/foreground; open system panels; disconnect a controller. Ensure nothing sticks or resumes unexpectedly.
 3. Check gesture Back and three-button Back from gameplay, pause, defeat and victory. Review cutouts, gesture insets, 16:9 and tall phones, both landscape rotations, tablet/foldable windows and readable text/tap targets. Landscape support does not establish every resizable-window layout.
@@ -58,4 +60,6 @@ Developer verification, account-specific testing requirements and Play pre-launc
 
 Run `Tools/Verify-AndroidApk.ps1 -ApkPath <apk>` after a test build. It verifies target API (36 by default for this audit date), a non-template identifier, ARM64 support, the APK signature, 16 KB ZIP alignment and every ARM64 ELF LOAD segment, then writes an ignored JSON report with the APK SHA-256 and permissions. `-RequireRelease` additionally rejects a debuggable package; it is not a substitute for AAB/signing/Play/device checks.
 
-The earlier APK was verified successfully: SDK 26–36, package `com.gravitygame.prototype`, six ARM64 libraries, valid signature, compatible ZIP/ELF alignment. It predates landing victory and remains a development build. Its report is `Builds/MobilePrototype/android-previous-apk-audit.json`.
+The updated APK at `Builds/MobilePrototype/GravityGame-Prototype.apk` includes landing victory and passed all package checks: SDK 26–36, package `com.gravitygame.prototype`, six ARM64 libraries, valid signature, compatible ZIP/ELF alignment. It is 43,041,713 bytes; SHA-256 is `10F98A99401541BB13798066DC168D1D3AC4BBCCABE075E447FB4837FE1322DA`. The detailed report is `Builds/MobilePrototype/android-apk-audit.json`; build log is `Logs/android-audit-build.log`. It remains a development APK, and the release gate correctly rejects it for release use.
+
+The earlier APK was also checked and retained as `Builds/MobilePrototype/GravityGame-Prototype-before-victory.apk`; its historical report is `Builds/MobilePrototype/android-previous-apk-audit.json`. Neither artifact is a signed production AAB or evidence of hands-on device testing.
