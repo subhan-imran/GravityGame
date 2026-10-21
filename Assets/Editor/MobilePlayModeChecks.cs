@@ -17,6 +17,7 @@ namespace GravityGame.Editor
 
         public static void Run()
         {
+            MobileDemo.ConfigureLandscape();
             MobileDemo.UpgradeVictoryScene();
             SessionState.SetBool(ActiveKey, true);
             EditorApplication.EnterPlaymode();

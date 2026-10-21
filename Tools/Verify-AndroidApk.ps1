@@ -3,6 +3,7 @@ param(
     [string]$UnityEditorPath = 'C:/Program Files/Unity/Hub/Editor/6000.5.9f1/Editor',
     [int]$RequiredTargetSdk = 36,
     [switch]$RequireRelease,
+    [switch]$RequireFixedLandscape,
     [string]$ReportPath = 'Builds/MobilePrototype/android-apk-audit.json'
 )
 
@@ -24,6 +25,15 @@ if ([string]::IsNullOrWhiteSpace($packageName) -or $packageName -match 'UnityTec
     throw 'The package still uses an empty or Unity-template application identifier.'
 }
 if ($RequireRelease -and $debuggable) { throw 'This is a debuggable prototype, not a release build.' }
+
+$manifest = (& $aapt dump xmltree $apk AndroidManifest.xml) -join "`n"
+if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect the Android manifest.' }
+$orientationMatch = [regex]::Match($manifest, 'android:screenOrientation[^\r\n]*=\(type 0x10\)0x([0-9a-f]+)')
+$orientation = if ($orientationMatch.Success) { [Convert]::ToInt32($orientationMatch.Groups[1].Value, 16) } else { $null }
+# Android ActivityInfo constants: LANDSCAPE=0, REVERSE_LANDSCAPE=8 (PORTRAIT=1).
+if ($RequireFixedLandscape -and $orientation -notin @(0, 8)) {
+    throw "Android activity is not fixed to landscape (screenOrientation=$orientation)."
+}
 
 & (Join-Path $buildTools 'zipalign.exe') -c -P 16 4 $apk
 if ($LASTEXITCODE -ne 0) { throw 'APK native-library ZIP alignment failed the 16 KB check.' }
@@ -84,6 +94,8 @@ $report = [pscustomobject]@{
     MinimumSdk = $minSdk
     TargetSdk = $targetSdk
     Debuggable = $debuggable
+    ActivityScreenOrientation = $orientation
+    FixedLandscape = $orientation -in @(0, 8)
     SignatureVerified = $true
     Zip16KBAligned = $true
     Arm64Libraries = $libraries

@@ -67,9 +67,7 @@ namespace GravityGame.Editor
             PlayerSettings.Android.useCustomKeystore = false;
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, false);
             PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.OpenGLES3 });
-            PlayerSettings.defaultInterfaceOrientation = UIOrientation.AutoRotation;
-            PlayerSettings.allowedAutorotateToLandscapeLeft = PlayerSettings.allowedAutorotateToLandscapeRight = true;
-            PlayerSettings.allowedAutorotateToPortrait = PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
+            ConfigureLandscape();
             EditorUserBuildSettings.buildAppBundle = false;
             EditorUserBuildSettings.exportAsGoogleAndroidProject = false;
             System.IO.Directory.CreateDirectory("Builds");
@@ -82,6 +80,20 @@ namespace GravityGame.Editor
             });
             if (report.summary.result != BuildResult.Succeeded) throw new Exception("Android prototype build failed: " + report.summary.result);
             Debug.Log("MOBILE_ANDROID_BUILD_PASSED: Builds/GravityGame-Prototype.apk");
+        }
+
+        public static void ConfigureLandscape()
+        {
+            PlayerSettings.defaultInterfaceOrientation = UIOrientation.LandscapeLeft;
+            PlayerSettings.allowedAutorotateToLandscapeLeft = true;
+            PlayerSettings.allowedAutorotateToLandscapeRight = false;
+            PlayerSettings.allowedAutorotateToPortrait = PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
+            AssetDatabase.SaveAssets();
+            Require(PlayerSettings.defaultInterfaceOrientation == UIOrientation.LandscapeLeft &&
+                PlayerSettings.allowedAutorotateToLandscapeLeft && !PlayerSettings.allowedAutorotateToLandscapeRight &&
+                !PlayerSettings.allowedAutorotateToPortrait && !PlayerSettings.allowedAutorotateToPortraitUpsideDown,
+                "Android launch orientation is fixed landscape");
+            Debug.Log("ANDROID_LANDSCAPE_SETTINGS_PASSED: LandscapeLeft, serialized value=" + (int)PlayerSettings.defaultInterfaceOrientation);
         }
 
         public static void Validate()

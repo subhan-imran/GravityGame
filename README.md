@@ -1,8 +1,8 @@
 # GravityGame — Mobile Prototype
 
-Open `Assets/Scenes/MobilePrototype.unity` and press Play. The separate mobile scene preserves TwoPlanets and PhaseOne. Use landscape orientation; mobile runtime supports both landscape directions and targets 60 FPS (device performance still needs measurement).
+Open `Assets/Scenes/MobilePrototype.unity` and press Play. The separate mobile scene preserves TwoPlanets and PhaseOne. The game is locked to horizontal Landscape Left at launch, before the splash screen, during gameplay and when returning from the background. Automatic portrait rotation is disabled. Mobile runtime targets 60 FPS (device performance still needs measurement).
 
-The updated Android test APK, including landing victory, is available locally at `Builds/MobilePrototype/GravityGame-Prototype.apk` (Android 8.0+, ARM64, about 43 MB). Its development build, signature and 16 KB native-library/ZIP alignment were verified. The earlier APK is retained as `GravityGame-Prototype-before-victory.apk` in the same folder. Generated artifacts are ignored by Git; physical-phone testing is still outstanding.
+The updated horizontal Android test APK, including landing victory, is available locally at `Builds/MobilePrototype/GravityGame-Landscape.apk` (Android 8.0+, ARM64, about 61 MB). `GravityGame-Prototype.apk` points to the same current build. Its fixed landscape manifest, development build, signature and 16 KB native-library/ZIP alignment were verified. Earlier APKs are retained as `GravityGame-Prototype-before-landscape.apk` and `GravityGame-Prototype-before-victory.apk` in the same folder. Generated artifacts are ignored by Git; this orientation fix still needs confirmation on a physical phone.
 
 - **Left joystick:** partial movement walks, pushing near the edge runs automatically. A dead zone prevents small accidental movement; a separate run button is unnecessary.
 - **Jump:** tap the large right button. It turns gold and reads **HIGH JUMP** once a real run-up is ready. The jump triggers on touch-down; holding it does not repeat jumps. Movement, jump, and look can use independent fingers.
@@ -19,7 +19,7 @@ Validation: run Unity against a temporary or closed project with `-batchmode -no
 
 The optional `MobileDemo.BuildAndroid` batch entry point requires `-buildTarget Android` and an installed Android toolchain. Run it on a temporary copy: it configures that copy for a development ARM64/OpenGL ES 3 APK (`com.gravitygame.prototype`, target SDK 36) and writes `Builds/GravityGame-Prototype.apk`. The unused experimental `com.unity.pipeline` 0.9.0-exp.1 editor/live-reload package has been removed from the project because its preprocessor queries a desktop-only subtarget on Android. URP, the graphics rendering package, remains installed. Let Unity finish resolving packages before rebuilding; editing Library/PackageCache is unnecessary. This is not a store release. For iOS, build on macOS and enable both landscape orientations in Player Settings; no iOS build or physical-device test has been performed here.
 
-See `ANDROID_READINESS_AUDIT.md` for the Android build and store-readiness review. Run `Tools/Verify-AndroidApk.ps1` after an APK build to check its application identifier, target API, ARM64 support, signature, ZIP alignment and each native library's 16 KB ELF alignment. Add `-RequireRelease` to reject debuggable APKs; this does not replace release signing, an AAB, Play Console review or device testing.
+See `ANDROID_READINESS_AUDIT.md` for the Android build and store-readiness review. Run `Tools/Verify-AndroidApk.ps1 -RequireFixedLandscape` after an APK build to check its fixed horizontal launch orientation, application identifier, target API, ARM64 support, signature, ZIP alignment and each native library's 16 KB ELF alignment. Add `-RequireRelease` to reject debuggable APKs; this does not replace release signing, an AAB, Play Console review or device testing.
 
 ## Desktop prototypes
 ### Two Planet Demo

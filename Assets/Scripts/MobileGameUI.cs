@@ -57,6 +57,21 @@ namespace GravityGame
         public bool LossVisible => lossPanel != null && lossPanel.activeSelf;
         public bool VictoryVisible => victoryPanel != null && victoryPanel.activeSelf;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
+        private static void PrepareMobileDisplay()
+        {
+            if (Application.isMobilePlatform) LockLandscape();
+        }
+
+        private static void LockLandscape()
+        {
+            Screen.autorotateToLandscapeLeft = true;
+            Screen.autorotateToLandscapeRight = false;
+            Screen.autorotateToPortrait = Screen.autorotateToPortraitUpsideDown = false;
+            // Force the initial rotation instead of inheriting the phone's portrait state.
+            Screen.orientation = ScreenOrientation.LandscapeLeft;
+        }
+
         private void Awake() => Initialize();
 
         public void Initialize()
@@ -89,9 +104,7 @@ namespace GravityGame
                 previousRight = Screen.autorotateToLandscapeRight;
                 previousPortrait = Screen.autorotateToPortrait;
                 previousUpsideDown = Screen.autorotateToPortraitUpsideDown;
-                Screen.autorotateToLandscapeLeft = Screen.autorotateToLandscapeRight = true;
-                Screen.autorotateToPortrait = Screen.autorotateToPortraitUpsideDown = false;
-                Screen.orientation = ScreenOrientation.AutoRotation;
+                LockLandscape();
                 Application.targetFrameRate = 60;
             }
             Cursor.lockState = CursorLockMode.None;
@@ -355,8 +368,17 @@ namespace GravityGame
             if (cameraRig != null) cameraRig.ClearTouchLook();
         }
 
-        private void OnApplicationFocus(bool focused) { if (!focused) PauseGame(); }
-        private void OnApplicationPause(bool paused) { if (paused) PauseGame(); }
+        private void OnApplicationFocus(bool focused)
+        {
+            if (!focused) PauseGame();
+            else if (changedMobileSettings) LockLandscape();
+        }
+
+        private void OnApplicationPause(bool paused)
+        {
+            if (paused) PauseGame();
+            else if (changedMobileSettings) LockLandscape();
+        }
 
         private void OnDisable()
         {
