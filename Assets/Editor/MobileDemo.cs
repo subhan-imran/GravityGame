@@ -25,6 +25,7 @@ namespace GravityGame.Editor
             var camera = Object.FindAnyObjectByType<PlanetCamera>();
             player.useMobileUI = true;
             player.showTravelHelp = false;
+            player.victoryPlanet = player.gravitySources[1];
             camera.assisted = true;
             camera.distance = 10f;
             camera.defaultPitch = 8f;
@@ -40,6 +41,18 @@ namespace GravityGame.Editor
         {
             TwoPlanetDemo.ValidateAll();
             Validate();
+        }
+
+        // Upgrade the saved mobile scene in place so existing scene objects keep their identity.
+        public static void UpgradeVictoryScene()
+        {
+            var scene = EditorSceneManager.OpenScene("Assets/Scenes/MobilePrototype.unity");
+            var ui = Object.FindAnyObjectByType<MobileGameUI>();
+            ui.player.victoryPlanet = ui.player.gravitySources[1];
+            ui.BuildUI();
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
+            Debug.Log("VICTORY_SCENE_UPGRADED");
         }
 
         // Invoke on a temporary project copy with Unity's -buildTarget Android argument.
@@ -176,6 +189,46 @@ namespace GravityGame.Editor
                 Require(!player.HasLost && !player.IsPaused && !ui.LossVisible && player.RespawnCount == retries + 1 && Time.timeScale == 1f,
                     "Touch retry restores a playable checkpoint");
                 Step(50);
+                Require(!player.HasWon && !ui.VictoryVisible, "Starting-planet landings do not complete the level");
+                PlanetGravity home = player.planet;
+                PlanetGravity goal = player.victoryPlanet;
+                Require(goal != null && goal != home, "Mobile victory destination is the second planet");
+                PlaceAtGoal(3f);
+                Step(10);
+                Require(player.IsInGravityField && !player.IsGrounded && !player.HasWon, "Entering destination gravity while airborne is not victory");
+                PlaceAtGoal(1.05f);
+                Step(2);
+                Require(!player.HasWon, "Brief surface contact does not immediately win");
+                PlaceAtGoal(3f);
+                Step(1);
+                PlaceAtGoal(1.05f);
+                Step(8);
+                Require(!player.HasWon, "Breaking contact resets the stable-landing timer");
+                Step(30);
+                Require(player.HasWon && ui.VictoryVisible && !ui.LossVisible && !ui.PauseVisible &&
+                    !ui.Joystick.gameObject.activeInHierarchy && body.isKinematic, "Stable destination landing shows victory and freezes gameplay");
+                Vector3 wonPosition = body.position;
+                player.SetTouchMovement(Vector2.up);
+                player.RequestJump();
+                Step(30);
+                ui.PauseGame();
+                typeof(MobileGameUI).GetMethod("OnApplicationFocus", flags).Invoke(ui, new object[] { false });
+                Require(player.HasWon && !player.IsPaused && ui.VictoryVisible && body.position == wonPosition &&
+                    player.MovementInput == Vector2.zero && Time.timeScale == 1f, "Victory remains stable through controls and focus interruptions");
+                RefreshInteractionRender();
+                var playAgainTouch = Pointer(505, ScreenPoint(ui.PlayAgainButton.transform));
+                hits.Clear();
+                ui.Events.RaycastAll(playAgainTouch, hits);
+                if (Application.isPlaying)
+                    Require(hits.Count > 0 && hits[0].gameObject == ui.PlayAgainButton.gameObject, "Play Again receives the victory-screen touch");
+                int restarts = player.RespawnCount;
+                ExecuteEvents.Execute(ui.PlayAgainButton.gameObject, playAgainTouch, ExecuteEvents.pointerClickHandler);
+                Require(!player.HasWon && !player.HasLost && !player.IsPaused && !ui.VictoryVisible &&
+                    !body.isKinematic && player.planet == home && player.RespawnCount == restarts + 1 && player.MovementInput == Vector2.zero,
+                    "Play Again starts on the original planet instead of the winning checkpoint");
+                Step(50);
+                Require(player.IsGrounded && !player.HasWon && !ui.VictoryVisible, "New attempt remains playable on the starting planet");
+                Debug.Log("VICTORY_VALIDATION_PASSED: gravity entry versus stable landing, contact reset, terminal controls, rendered Play Again routing, fresh starting-planet attempt.");
                 ui.PauseGame();
                 typeof(MobileGameUI).GetMethod("OnDisable", flags).Invoke(ui, null);
                 Require(Time.timeScale == 1f && !player.IsPaused, "Leaving the scene cannot leave the global clock paused");
@@ -204,6 +257,15 @@ namespace GravityGame.Editor
                 { pointerId = id, position = position, button = PointerEventData.InputButton.Left,
                     pointerPressRaycast = new RaycastResult { module = ui.GetComponentInChildren<UnityEngine.UI.GraphicRaycaster>() } };
             void Click(GameObject button) => ExecuteEvents.Execute(button, Pointer(404, ScreenPoint(button.transform)), ExecuteEvents.pointerClickHandler);
+            void PlaceAtGoal(float altitude)
+            {
+                body.position = player.victoryPlanet.transform.position + Vector3.up * (player.victoryPlanet.Radius + altitude);
+                body.rotation = Quaternion.identity;
+                body.linearVelocity = Vector3.zero;
+                player.planet = player.victoryPlanet;
+                player.transform.SetPositionAndRotation(body.position, body.rotation);
+                Physics.SyncTransforms();
+            }
             void Step(int count)
             {
                 for (int i = 0; i < count; i++)
@@ -264,6 +326,24 @@ namespace GravityGame.Editor
                 typeof(SphericalPlayer).GetMethod("FixedUpdate", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(ui.player, null);
                 ui.Refresh();
                 Capture("mobile-loss.png");
+                ui.PlayAgain();
+                var goal = ui.player.victoryPlanet;
+                var body = ui.player.GetComponent<Rigidbody>();
+                ui.player.planet = goal;
+                body.position = goal.transform.position + Vector3.up * (goal.Radius + 1.05f);
+                body.rotation = Quaternion.identity;
+                ui.player.transform.SetPositionAndRotation(body.position, body.rotation);
+                Physics.SyncTransforms();
+                var previewMode = Physics.simulationMode;
+                Physics.simulationMode = SimulationMode.Script;
+                for (int i = 0; i < 60; i++)
+                {
+                    typeof(SphericalPlayer).GetMethod("FixedUpdate", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(ui.player, null);
+                    Physics.Simulate(Time.fixedDeltaTime);
+                }
+                Physics.simulationMode = previewMode;
+                typeof(PlanetCamera).GetMethod("LateUpdate", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(ui.cameraRig, null);
+                Capture("mobile-victory.png");
             }
             finally
             {

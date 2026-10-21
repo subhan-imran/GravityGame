@@ -57,7 +57,7 @@ namespace GravityGame
             if (planet == null) return;
             if (player != null && player.IsPaused) { touchLook = Vector2.zero; return; }
             bool mobile = player != null && player.useMobileUI;
-            bool allowLook = player == null || (!player.HasLost && !player.IsPaused);
+            bool allowLook = player == null || (!player.HasLost && !player.HasWon && !player.IsPaused);
             if (!allowLook) Cursor.lockState = CursorLockMode.None;
             if (mobile) Cursor.lockState = CursorLockMode.None;
             if (!mobile && allowLook && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)

@@ -20,7 +20,7 @@ namespace GravityGame
 
         public void OnPointerDown(PointerEventData data)
         {
-            if (HasPointer || player == null || player.HasLost || player.IsPaused || data.button != PointerEventData.InputButton.Left) return;
+            if (HasPointer || player == null || player.HasLost || player.HasWon || player.IsPaused || data.button != PointerEventData.InputButton.Left) return;
             owner = data.pointerId;
             if (kind == MobileControlKind.Joystick) MoveStick(data);
             if (kind == MobileControlKind.Jump) player.RequestJump();
@@ -28,7 +28,7 @@ namespace GravityGame
 
         public void OnDrag(PointerEventData data)
         {
-            if (data.pointerId != owner || player == null || player.HasLost || player.IsPaused) return;
+            if (data.pointerId != owner || player == null || player.HasLost || player.HasWon || player.IsPaused) return;
             if (kind == MobileControlKind.Joystick) MoveStick(data);
             if (kind == MobileControlKind.Look && cameraRig != null)
             {

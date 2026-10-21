@@ -17,7 +17,7 @@ namespace GravityGame.Editor
 
         public static void Run()
         {
-            MobileDemo.CreateDemo();
+            MobileDemo.UpgradeVictoryScene();
             SessionState.SetBool(ActiveKey, true);
             EditorApplication.EnterPlaymode();
         }
@@ -46,7 +46,7 @@ namespace GravityGame.Editor
                     return;
                 }
                 MobileDemo.RenderCurrentPreviews();
-                Debug.Log("MOBILE_PLAY_MODE_CHECKS_PASSED: rendered touch priority, serialized scene reload, gameplay/pause/loss previews.");
+                Debug.Log("MOBILE_PLAY_MODE_CHECKS_PASSED: rendered touch priority, victory/restart, serialized scene reload, gameplay/pause/loss/victory previews.");
                 Finish(0);
             }
             catch (System.Exception exception)

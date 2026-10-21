@@ -22,10 +22,14 @@ namespace GravityGame
         [FormerlySerializedAs("respawnDistance"), Min(1f)] public float lossDistance = 120f;
         public bool showTravelHelp;
         public bool useMobileUI;
+        [Tooltip("Leave empty for free play. A stable landing here completes the level.")]
+        public PlanetGravity victoryPlanet;
+        [Min(0.02f)] public float victoryLandingTime = 0.25f;
         public bool IsGrounded { get; private set; }
         public Vector3 GravityUp { get; private set; } = Vector3.up;
         public int RespawnCount { get; private set; }
         public bool HasLost { get; private set; }
+        public bool HasWon { get; private set; }
         public bool IsPaused { get; private set; }
         public Vector2 MovementInput => input;
         public Vector3 Velocity => body != null ? body.linearVelocity : Vector3.zero;
@@ -47,6 +51,10 @@ namespace GravityGame
         private PlanetGravity checkpointPlanet;
         private Vector3 checkpointLocalPosition;
         private Quaternion checkpointLocalRotation;
+        private PlanetGravity startingPlanet;
+        private Vector3 startingLocalPosition;
+        private Quaternion startingLocalRotation;
+        private float victoryGroundedTime;
 
         private void Awake()
         {
@@ -59,6 +67,9 @@ namespace GravityGame
             GravityUp = planet != null ? planet.UpAt(body.position) : transform.up;
             IsInGravityField = planet != null && planet.Contains(body.position);
             SaveCheckpoint();
+            startingPlanet = checkpointPlanet;
+            startingLocalPosition = checkpointLocalPosition;
+            startingLocalRotation = checkpointLocalRotation;
         }
 
         private void Update()
@@ -66,9 +77,12 @@ namespace GravityGame
             var keyboard = Keyboard.current;
             input = Vector2.zero;
             runRequested = false;
-            if (IsPaused || HasLost)
+            if (IsPaused || HasLost || HasWon)
             {
-                if (!IsPaused && keyboard != null && keyboard.rKey.wasPressedThisFrame) Respawn();
+                if (!IsPaused && keyboard != null && keyboard.rKey.wasPressedThisFrame)
+                {
+                    if (HasWon) RestartRun(); else Respawn();
+                }
                 return;
             }
             ApplyTouchMovement();
@@ -93,7 +107,7 @@ namespace GravityGame
 
         public void SetTouchMovement(Vector2 value)
         {
-            touchMovement = HasLost || IsPaused ? Vector2.zero : Vector2.ClampMagnitude(value, 1f);
+            touchMovement = HasLost || HasWon || IsPaused ? Vector2.zero : Vector2.ClampMagnitude(value, 1f);
             ApplyTouchMovement();
         }
 
@@ -107,7 +121,7 @@ namespace GravityGame
 
         public void RequestJump()
         {
-            if (!HasLost && !IsPaused) jumpBuffer = 0.15f;
+            if (!HasLost && !HasWon && !IsPaused) jumpBuffer = 0.15f;
         }
 
         public void ClearInput()
@@ -125,7 +139,7 @@ namespace GravityGame
 
         private void FixedUpdate()
         {
-            if (HasLost || IsPaused) return;
+            if (HasLost || HasWon || IsPaused) return;
             float dt = Time.fixedDeltaTime;
             groundingLock = Mathf.Max(0f, groundingLock - dt);
             PlanetGravity closest = ClosestPlanet(body.position, true);
@@ -145,7 +159,7 @@ namespace GravityGame
                 (planet == null || !planet.Contains(body.position) || closest.SurfaceDistance(body.position) + switchHysteresis < planet.SurfaceDistance(body.position)))
                 SwitchPlanet(closest);
 
-            if (planet == null) return;
+            if (planet == null) { victoryGroundedTime = 0f; return; }
             IsInGravityField = planet.Contains(body.position);
             Vector3 radialUp = planet.UpAt(body.position);
             Quaternion current = body.rotation;
@@ -162,6 +176,19 @@ namespace GravityGame
                 Vector3.Dot(body.linearVelocity, radialUp) < 1f &&
                 surface.Raycast(new Ray(center, -radialUp), out _, halfHeight + 0.15f);
             if (IsGrounded && Vector3.Dot(GravityUp, radialUp) > 0.98f) SaveCheckpoint();
+            bool safeVictoryLanding = victoryPlanet != null && planet == victoryPlanet &&
+                IsGrounded && Vector3.Dot(GravityUp, radialUp) > 0.98f;
+            victoryGroundedTime = safeVictoryLanding ? victoryGroundedTime + dt : 0f;
+            if (safeVictoryLanding && victoryGroundedTime >= victoryLandingTime)
+            {
+                HasWon = true;
+                ClearInput();
+                body.linearVelocity = body.angularVelocity = Vector3.zero;
+                body.isKinematic = true;
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+                return;
+            }
 
             Vector3 forward = Vector3.ProjectOnPlane(movementCamera != null
                 ? movementCamera.forward : aligned * Vector3.forward, GravityUp).normalized;
@@ -247,6 +274,7 @@ namespace GravityGame
         {
             if (body == null || checkpointPlanet == null) return;
             HasLost = false;
+            HasWon = false;
             ClearInput();
             body.isKinematic = false;
             planet = checkpointPlanet;
@@ -261,12 +289,21 @@ namespace GravityGame
             Physics.SyncTransforms();
             input = Vector2.zero;
             runRequested = false;
-            jumpBuffer = outsideTime = 0f;
+            jumpBuffer = outsideTime = victoryGroundedTime = 0f;
             groundingLock = 0.15f;
             IsGrounded = false;
             IsInGravityField = planet.Contains(body.position);
             RespawnCount++;
             Cursor.lockState = useMobileUI || Application.isMobilePlatform ? CursorLockMode.None : CursorLockMode.Locked;
+        }
+
+        public void RestartRun()
+        {
+            if (startingPlanet == null) return;
+            checkpointPlanet = startingPlanet;
+            checkpointLocalPosition = startingLocalPosition;
+            checkpointLocalRotation = startingLocalRotation;
+            Respawn();
         }
 
         private void OnGUI()

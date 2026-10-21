@@ -15,6 +15,7 @@ namespace GravityGame
         [SerializeField] private GameObject gameplay;
         [SerializeField] private GameObject pausePanel;
         [SerializeField] private GameObject lossPanel;
+        [SerializeField] private GameObject victoryPanel;
         [SerializeField] private MobileTouchControl joystick;
         [SerializeField] private MobileTouchControl lookArea;
         [SerializeField] private MobileTouchControl jumpControl;
@@ -22,6 +23,7 @@ namespace GravityGame
         [SerializeField] private Button resumeButton;
         [SerializeField] private Button pauseRetryButton;
         [SerializeField] private Button lossRetryButton;
+        [SerializeField] private Button playAgainButton;
         [SerializeField] private Text status;
         [SerializeField] private Text hint;
         [SerializeField] private Text jumpLabel;
@@ -33,6 +35,7 @@ namespace GravityGame
         private float resumeTimeScale = 1f;
         private int lastRespawn;
         private bool wasLost;
+        private bool wasWon;
         private bool changedMobileSettings;
         private int previousFrameRate;
         private ScreenOrientation previousOrientation;
@@ -47,10 +50,12 @@ namespace GravityGame
         public Button PauseButton => pauseButton;
         public Button ResumeButton => resumeButton;
         public Button RetryButton => lossRetryButton;
+        public Button PlayAgainButton => playAgainButton;
         public RectTransform SafeRoot => safeRoot;
         public EventSystem Events => eventSystem;
         public bool PauseVisible => pausePanel != null && pausePanel.activeSelf;
         public bool LossVisible => lossPanel != null && lossPanel.activeSelf;
+        public bool VictoryVisible => victoryPanel != null && victoryPanel.activeSelf;
 
         private void Awake() => Initialize();
 
@@ -72,6 +77,8 @@ namespace GravityGame
             pauseRetryButton.onClick.AddListener(RetryFromCheckpoint);
             lossRetryButton.onClick.RemoveListener(RetryFromCheckpoint);
             lossRetryButton.onClick.AddListener(RetryFromCheckpoint);
+            playAgainButton.onClick.RemoveListener(PlayAgain);
+            playAgainButton.onClick.AddListener(PlayAgain);
             lastRespawn = player.RespawnCount;
             if (Application.isPlaying && Application.isMobilePlatform && !changedMobileSettings)
             {
@@ -93,7 +100,11 @@ namespace GravityGame
 
         public void BuildUI()
         {
-            if (canvas != null) return;
+            if (canvas != null)
+            {
+                BuildVictoryUI();
+                return;
+            }
             var canvasObject = new GameObject("Mobile Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             canvasObject.transform.SetParent(transform, false);
             canvas = canvasObject.GetComponent<Canvas>();
@@ -143,6 +154,7 @@ namespace GravityGame
             lossPanel = Modal("Loss overlay", "Lost in space", "You missed the next planet.\nTry again from your last safe landing.", false);
             pausePanel.SetActive(false);
             lossPanel.SetActive(false);
+            BuildVictoryUI();
             eventSystem = Object.FindAnyObjectByType<EventSystem>();
             if (eventSystem == null)
             {
@@ -152,7 +164,14 @@ namespace GravityGame
             }
         }
 
-        private GameObject Modal(string name, string title, string message, bool pause)
+        private void BuildVictoryUI()
+        {
+            if (victoryPanel != null) return;
+            victoryPanel = Modal("Victory overlay", "Planet reached!", "You landed on the next planet.\nReady for another jump?", false, true);
+            victoryPanel.SetActive(false);
+        }
+
+        private GameObject Modal(string name, string title, string message, bool pause, bool victory = false)
         {
             var shade = Image(name, safeRoot, new Color(0.01f, 0.025f, 0.06f, 0.85f));
             Stretch(shade.rectTransform);
@@ -162,7 +181,13 @@ namespace GravityGame
             Place(heading.rectTransform, new Vector2(0.5f, 1f), Vector2.one * 0.5f, new Vector2(0f, -64f), new Vector2(500f, 64f));
             var description = Label("Description", panel.transform, message, 24, TextAnchor.MiddleCenter, Vector2.zero, new Vector2(500f, 80f));
             Place(description.rectTransform, new Vector2(0.5f, 1f), Vector2.one * 0.5f, new Vector2(0f, -146f), new Vector2(500f, 80f));
-            if (pause)
+            if (victory)
+            {
+                heading.color = Gold;
+                playAgainButton = MakeButton("Play again", panel.transform, "PLAY AGAIN", Vector2.one * 0.5f, Vector2.one * 0.5f, new Vector2(0f, -130f), new Vector2(432f, 100f), Gold);
+                playAgainButton.GetComponentInChildren<Text>().color = Navy;
+            }
+            else if (pause)
             {
                 resumeButton = MakeButton("Resume", panel.transform, "RESUME", Vector2.one * 0.5f, Vector2.one * 0.5f, new Vector2(0f, -40f), new Vector2(432f, 96f), Blue);
                 pauseRetryButton = MakeButton("Retry", panel.transform, "RETRY FROM CHECKPOINT", Vector2.one * 0.5f, Vector2.one * 0.5f, new Vector2(0f, -154f), new Vector2(432f, 96f), new Color(0.18f, 0.28f, 0.4f));
@@ -242,23 +267,25 @@ namespace GravityGame
         private void Update()
         {
             if (player == null || canvas == null) return;
-            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame && !player.HasLost)
+            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame && !player.HasLost && !player.HasWon)
             {
                 if (player.IsPaused) ResumeGame(); else PauseGame();
             }
-            if (lastRespawn != player.RespawnCount || wasLost != player.HasLost) ResetControls();
+            if (lastRespawn != player.RespawnCount || wasLost != player.HasLost || wasWon != player.HasWon) ResetControls();
             lastRespawn = player.RespawnCount;
             wasLost = player.HasLost;
+            wasWon = player.HasWon;
             Refresh();
         }
 
         public void Refresh()
         {
             if (canvas == null || player == null) return;
-            bool playing = !player.HasLost && !player.IsPaused;
+            bool playing = !player.HasLost && !player.HasWon && !player.IsPaused;
             gameplay.SetActive(playing);
-            pausePanel.SetActive(player.IsPaused && !player.HasLost);
-            lossPanel.SetActive(player.HasLost);
+            pausePanel.SetActive(player.IsPaused && !player.HasLost && !player.HasWon);
+            lossPanel.SetActive(player.HasLost && !player.HasWon);
+            victoryPanel.SetActive(player.HasWon);
             status.text = player.IsInGravityField && player.planet != null
                 ? player.planet.name.ToUpperInvariant() + "  /  GRAVITY ACTIVE"
                 : "SPACE  /  " + player.SpaceTimeRemaining.ToString("0.0") + "s TO FIND GRAVITY";
@@ -283,7 +310,7 @@ namespace GravityGame
 
         public void PauseGame()
         {
-            if (player == null || player.HasLost || player.IsPaused) return;
+            if (player == null || player.HasLost || player.HasWon || player.IsPaused) return;
             ownsPause = true;
             resumeTimeScale = Time.timeScale;
             Time.timeScale = 0f;
@@ -308,6 +335,14 @@ namespace GravityGame
             ResumeGame();
             ResetControls();
             player.Respawn();
+            Refresh();
+        }
+
+        public void PlayAgain()
+        {
+            ResumeGame();
+            ResetControls();
+            player.RestartRun();
             Refresh();
         }
 
