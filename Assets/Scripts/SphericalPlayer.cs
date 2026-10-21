@@ -41,6 +41,14 @@ namespace GravityGame
         public bool EscapeJumpReady => IsGrounded && NextJump == 3;
         public float JumpWindowRemaining => Mathf.Max(0f, consecutiveJumpWindow - comboGroundedTime);
 
+        public event System.Action<int> Jumped;
+        public event System.Action<int> Landed;
+        public bool LowerJumpConstrained => lowerJumpPlanet != null;
+
+        private PlanetGravity lowerJumpPlanet;
+        private float lowerJumpRadius;
+        private bool landingPending;
+        private int lastTakeoffStage;
         private Rigidbody body;
         private CapsuleCollider capsule;
         private Vector2 input;
@@ -143,8 +151,9 @@ namespace GravityGame
         {
             if (HasLost || HasWon || IsPaused) return;
             float dt = Time.fixedDeltaTime;
+            RestoreLowerJumpBounds();
             groundingLock = Mathf.Max(0f, groundingLock - dt);
-            PlanetGravity closest = ClosestPlanet(body.position, true);
+            PlanetGravity closest = lowerJumpPlanet != null ? lowerJumpPlanet : ClosestPlanet(body.position, true);
             if (closest == null)
             {
                 outsideTime += dt;
@@ -178,6 +187,15 @@ namespace GravityGame
                 Vector3.Dot(body.linearVelocity, radialUp) < 1f &&
                 surface.Raycast(new Ray(center, -radialUp), out _, halfHeight + 0.15f);
             if (IsGrounded && Vector3.Dot(GravityUp, radialUp) > 0.98f) SaveCheckpoint();
+            if (IsGrounded)
+            {
+                lowerJumpPlanet = null;
+                if (landingPending)
+                {
+                    landingPending = false;
+                    Landed?.Invoke(lastTakeoffStage);
+                }
+            }
             // Only time spent on the ground consumes the chain window. Pause freezes it.
             if (IsGrounded && JumpChain > 0)
             {
@@ -185,6 +203,7 @@ namespace GravityGame
                 if (JumpChain == 3 || comboGroundedTime > consecutiveJumpWindow) ResetJumpChain();
             }
 
+            Vector3 pendingVelocityChange = Vector3.zero;
             Vector3 forward = Vector3.ProjectOnPlane(movementCamera != null
                 ? movementCamera.forward : aligned * Vector3.forward, GravityUp).normalized;
             if (forward.sqrMagnitude < 0.001f) forward = aligned * Vector3.forward;
@@ -198,9 +217,9 @@ namespace GravityGame
                 if (!IsGrounded) desired = desired.normalized * Mathf.Max(targetSpeed, tangentVelocity.magnitude);
                 Vector3 change = Vector3.ClampMagnitude(desired - tangentVelocity,
                     acceleration * (IsGrounded ? 1f : airControl) * dt);
-                body.AddForce(change, ForceMode.VelocityChange);
+                pendingVelocityChange += change;
             }
-            body.AddForce(planet.AccelerationAt(body.position), ForceMode.Acceleration);
+            pendingVelocityChange += planet.AccelerationAt(body.position) * dt;
 
             if (IsGrounded && jumpBuffer > 0f)
             {
@@ -208,23 +227,60 @@ namespace GravityGame
                 comboGroundedTime = 0f;
                 float height = JumpChain == 3 ? Mathf.Max(secondJumpHeight, thirdJumpHeight)
                     : JumpChain == 2 ? Mathf.Max(jumpHeight, secondJumpHeight) : jumpHeight;
-                float energy = planet.acceleration * height;
-                if (JumpChain < 3)
-                {
-                    // Running around a small sphere adds outward motion. Compensate at takeoff so
-                    // the first two jumps keep their intended height even at full running speed.
-                    float radius = Vector3.Distance(body.position, planet.transform.position);
-                    float tangentSpeedSquared = Vector3.ProjectOnPlane(body.linearVelocity, radialUp).sqrMagnitude;
-                    float ratio = radius / (radius + height);
-                    energy += 0.5f * tangentSpeedSquared * (ratio * ratio - 1f);
-                }
-                float jumpSpeed = Mathf.Sqrt(2f * Mathf.Max(0.1f, energy));
-                body.AddForce(radialUp * (jumpSpeed - Vector3.Dot(body.linearVelocity, radialUp)), ForceMode.VelocityChange);
+                float jumpSpeed = Mathf.Sqrt(2f * planet.acceleration * height);
+                pendingVelocityChange += radialUp * (jumpSpeed - Vector3.Dot(body.linearVelocity, radialUp));
+                lowerJumpPlanet = JumpChain < 3 ? planet : null;
+                if (lowerJumpPlanet != null)
+                    lowerJumpRadius = Mathf.Min(Vector3.Distance(body.position, planet.transform.position) + height,
+                        LowerJumpCeiling(planet));
+                landingPending = true;
+                lastTakeoffStage = JumpChain;
                 jumpBuffer = 0f;
                 groundingLock = 0.2f;
                 IsGrounded = false;
+                Jumped?.Invoke(JumpChain);
             }
+            Vector3 nextVelocity = body.linearVelocity + pendingVelocityChange;
+            if (lowerJumpPlanet != null)
+            {
+                // Supply the centripetal part of surface travel during lower jumps. Running
+                // cannot turn either arc into a sustained orbit instead of another landing.
+                float tangentSpeedSquared = Vector3.ProjectOnPlane(nextVelocity, radialUp).sqrMagnitude;
+                nextVelocity -= radialUp * (tangentSpeedSquared / Mathf.Max(0.1f,
+                    Vector3.Distance(body.position, lowerJumpPlanet.transform.position))) * dt;
+            }
+            LimitLowerJumpVelocity(ref nextVelocity, dt);
+            body.AddForce(nextVelocity - body.linearVelocity, ForceMode.VelocityChange);
             jumpBuffer = Mathf.Max(0f, jumpBuffer - dt);
+        }
+
+        private static float LowerJumpCeiling(PlanetGravity source) => source.Radius +
+            Mathf.Max(0.05f, source.influenceHeight - Mathf.Max(0.5f, source.edgeFalloff) - 0.1f);
+
+        private void RestoreLowerJumpBounds()
+        {
+            if (lowerJumpPlanet == null) return;
+            if (!lowerJumpPlanet.isActiveAndEnabled) { lowerJumpPlanet = null; return; }
+            lowerJumpRadius = Mathf.Min(lowerJumpRadius,
+                LowerJumpCeiling(lowerJumpPlanet));
+            Vector3 radial = body.position - lowerJumpPlanet.transform.position;
+            // Recover from an external impulse/collision too, before gravity selection or loss checks.
+            if (radial.sqrMagnitude > lowerJumpRadius * lowerJumpRadius)
+                body.position = lowerJumpPlanet.transform.position + radial.normalized * lowerJumpRadius;
+        }
+
+        private void LimitLowerJumpVelocity(ref Vector3 velocity, float dt)
+        {
+            if (lowerJumpPlanet == null) return;
+            Vector3 radial = body.position - lowerJumpPlanet.transform.position;
+            Vector3 up = lowerJumpPlanet.UpAt(body.position);
+            Vector3 tangent = Vector3.ProjectOnPlane(velocity, up);
+            // Solve the next spherical position, including tangential travel and all motor/gravity
+            // impulses. Unlike a takeoff-speed approximation, this also works while holding run.
+            tangent = Vector3.ClampMagnitude(tangent, lowerJumpRadius * 0.9f / dt);
+            float radialLimit = (Mathf.Sqrt(Mathf.Max(0f, lowerJumpRadius * lowerJumpRadius -
+                tangent.sqrMagnitude * dt * dt)) - radial.magnitude) / dt;
+            velocity = tangent + up * Mathf.Min(Vector3.Dot(velocity, up), radialLimit);
         }
 
         private PlanetGravity ClosestPlanet(Vector3 position, bool inRangeOnly)
@@ -265,6 +321,7 @@ namespace GravityGame
         {
             if (HasLost) return;
             HasLost = true;
+            landingPending = false;
             ResetJumpChain();
             ClearInput();
             IsGrounded = IsInGravityField = false;
@@ -283,6 +340,7 @@ namespace GravityGame
             if (body == null || checkpointPlanet == null) return;
             if (HasWon) { RestartRun(); return; }
             HasLost = false;
+            landingPending = false;
             ResetJumpChain();
             ClearInput();
             body.isKinematic = false;
@@ -319,6 +377,7 @@ namespace GravityGame
 
         private void ResetJumpChain()
         {
+            lowerJumpPlanet = null;
             JumpChain = 0;
             comboGroundedTime = 0f;
         }

@@ -124,6 +124,16 @@ namespace GravityGame.Editor
                 Physics.SyncTransforms();
                 Step(80);
                 Canvas.ForceUpdateCanvases();
+                RefreshInteractionRender();
+                var tutorialTouch = Pointer(606, ScreenPoint(ui.SkipTutorialButton.transform));
+                var tutorialHits = new List<RaycastResult>();
+                ui.Events.RaycastAll(tutorialTouch, tutorialHits);
+                Debug.Log("TUTORIAL_RAYCAST: active=" + ui.Tutorial.Active + " card=" + ui.Tutorial.card.activeInHierarchy +
+                    " phase=" + ui.Tutorial.Step + " position=" + tutorialTouch.position + " depth=" +
+                    ui.SkipTutorialButton.image.depth + " hits=" + string.Join(",", tutorialHits.ConvertAll(hit => hit.gameObject.name)));
+                if (Application.isPlaying)
+                    Require(tutorialHits.Count > 0 && tutorialHits[0].gameObject == ui.SkipTutorialButton.gameObject,
+                        "Skip is touchable above the nonblocking tutorial card");
                 Require(player.IsGrounded && player.useMobileUI && ui.cameraRig.assisted, "Mobile scene wiring");
 
                 var stick = ui.Joystick;
@@ -192,6 +202,8 @@ namespace GravityGame.Editor
                     Vector2.Distance(ui.SafeRoot.anchorMax, new Vector2(0.9375f, 700f / 720f)) < 0.001f, "Safe-area insets");
                 ui.ApplySafeArea(Screen.safeArea, new Vector2(Screen.width, Screen.height));
 
+                player.Respawn();
+                Step(50);
                 int retries = player.RespawnCount;
                 body.position = Vector3.one * 500f;
                 Physics.SyncTransforms();
@@ -203,6 +215,7 @@ namespace GravityGame.Editor
                 Step(50);
                 Require(!player.HasWon && !ui.VictoryVisible, "Starting-planet landings do not complete the level");
                 JumpChainChecks.Validate(player, ui, Step);
+                TutorialFeedbackChecks.Validate(player, ui, Step);
                 PlanetGravity home = player.planet;
                 PlanetGravity goal = player.gravitySources[1];
                 PlaceOnEmber(1.05f);
@@ -277,7 +290,9 @@ namespace GravityGame.Editor
             Vector2 ScreenPoint(Transform item)
             {
                 RefreshInteractionRender();
-                return RectTransformUtility.WorldToScreenPoint(EventCamera(), item.position);
+                var rect = item as RectTransform;
+                Vector3 center = rect != null ? rect.TransformPoint(rect.rect.center) : item.position;
+                return RectTransformUtility.WorldToScreenPoint(EventCamera(), center);
             }
             PointerEventData Pointer(int id, Vector2 position) => new PointerEventData(ui.Events)
                 { pointerId = id, position = position, button = PointerEventData.InputButton.Left,
@@ -356,6 +371,10 @@ namespace GravityGame.Editor
             try
             {
                 Capture("mobile-gameplay.png");
+                PreviewJumpAndLand();
+                Capture("mobile-landing-feedback.png");
+                PreviewJumpAndLand();
+                Capture("mobile-third-jump-ready.png");
                 ui.PauseGame();
                 Capture("mobile-pause.png");
                 ui.ResumeGame();
@@ -374,6 +393,27 @@ namespace GravityGame.Editor
                 view.targetTexture = null;
                 texture.Release();
                 Object.DestroyImmediate(texture);
+            }
+            void PreviewJumpAndLand()
+            {
+                var previousMode = Physics.simulationMode;
+                Physics.simulationMode = SimulationMode.Script;
+                ui.player.RequestJump();
+                try
+                {
+                    for (int i = 0; i < 400; i++)
+                    {
+                        typeof(SphericalPlayer).GetMethod("FixedUpdate", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(ui.player, null);
+                        Physics.Simulate(Time.fixedDeltaTime);
+                        ui.Tutorial.Tick(Time.fixedDeltaTime);
+                        ui.Feedback.Tick(Time.fixedDeltaTime);
+                        typeof(PlanetCamera).GetMethod("LateUpdate", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(ui.cameraRig, null);
+                        if (i > 0 && ui.player.IsGrounded) break;
+                    }
+                    Require(ui.player.IsGrounded && !ui.player.HasLost, "Feedback preview returns to a landing");
+                    ui.Feedback.Tick(0.08f);
+                }
+                finally { Physics.simulationMode = previousMode; }
             }
             void Capture(string name)
             {

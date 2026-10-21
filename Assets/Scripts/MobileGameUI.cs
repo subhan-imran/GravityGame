@@ -30,6 +30,14 @@ namespace GravityGame
         [SerializeField] private Text jumpLabel;
         [SerializeField] private Image jumpImage;
         [SerializeField] private EventSystem eventSystem;
+        [SerializeField] private MobileTutorial tutorial;
+        [SerializeField] private MobileGameFeedback feedback;
+        [SerializeField] private Button skipTutorialButton;
+        [SerializeField] private Button replayTutorialButton;
+        public MobileTutorial Tutorial => tutorial;
+        public MobileGameFeedback Feedback => feedback;
+        public Button SkipTutorialButton => skipTutorialButton;
+        public Button ReplayTutorialButton => replayTutorialButton;
         private Rect lastSafeArea;
         private Vector2 lastScreen;
         private bool ownsPause;
@@ -96,6 +104,12 @@ namespace GravityGame
             lossRetryButton.onClick.AddListener(RetryFromCheckpoint);
             playAgainButton.onClick.RemoveListener(PlayAgain);
             playAgainButton.onClick.AddListener(PlayAgain);
+            skipTutorialButton.onClick.RemoveListener(tutorial.Skip);
+            skipTutorialButton.onClick.AddListener(tutorial.Skip);
+            replayTutorialButton.onClick.RemoveListener(ReplayTutorial);
+            replayTutorialButton.onClick.AddListener(ReplayTutorial);
+            tutorial.Initialize();
+            feedback.Initialize();
             lastRespawn = player.RespawnCount;
             if (Application.isPlaying && Application.isMobilePlatform && !changedMobileSettings)
             {
@@ -119,6 +133,7 @@ namespace GravityGame
             {
                 BuildVictoryUI();
                 BuildObjectiveUI();
+                BuildCoachingUI();
                 return;
             }
             var canvasObject = new GameObject("Mobile Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -172,6 +187,7 @@ namespace GravityGame
             lossPanel.SetActive(false);
             BuildVictoryUI();
             BuildObjectiveUI();
+            BuildCoachingUI();
             eventSystem = Object.FindAnyObjectByType<EventSystem>();
             if (eventSystem == null)
             {
@@ -203,6 +219,70 @@ namespace GravityGame
             victoryPanel.transform.Find("Dialog/Heading").GetComponent<Text>().text = "All stars collected!";
             victoryPanel.transform.Find("Dialog/Description").GetComponent<Text>().text = "You explored both planets and found every star.";
             gameplay.transform.Find("Flight caption").GetComponent<Text>().text = "EXPLORE BOTH PLANETS. COLLECT EVERY STAR.";
+        }
+
+        private void BuildCoachingUI()
+        {
+            if (tutorial == null) tutorial = GetComponent<MobileTutorial>();
+            if (tutorial == null) tutorial = gameObject.AddComponent<MobileTutorial>();
+            tutorial.player = player;
+            if (tutorial.card == null)
+            {
+                var card = Image("Tutorial card", gameplay.transform, Navy);
+                card.raycastTarget = false;
+                Place(card.rectTransform, new Vector2(0.5f, 0f), Vector2.one * 0.5f, new Vector2(0f, 166f), new Vector2(560f, 180f));
+                tutorial.card = card.gameObject;
+                tutorial.heading = Label("Tutorial heading", card.transform, "1 / 5  MOVE", 22, TextAnchor.MiddleLeft, new Vector2(18f, -26f), new Vector2(410f, 30f));
+                tutorial.heading.color = Gold;
+                tutorial.heading.resizeTextForBestFit = true;
+                tutorial.heading.resizeTextMinSize = 16;
+                tutorial.heading.resizeTextMaxSize = 22;
+                tutorial.instructions = Label("Tutorial instructions", card.transform, "Drag the left stick to move.\nPush it farther to run.", 21, TextAnchor.MiddleLeft, new Vector2(18f, -110f), new Vector2(410f, 116f));
+                tutorial.instructions.resizeTextForBestFit = true;
+                tutorial.instructions.resizeTextMinSize = 16;
+                tutorial.instructions.resizeTextMaxSize = 21;
+                skipTutorialButton = MakeButton("Skip tutorial", card.transform, "SKIP", new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-12f, 0f), new Vector2(110f, 76f), new Color(0.18f, 0.28f, 0.4f));
+                skipTutorialButton.GetComponentInChildren<Text>().fontSize = 18;
+            }
+            Place((RectTransform)tutorial.card.transform, new Vector2(0.5f, 0f), Vector2.one * 0.5f,
+                new Vector2(0f, 166f), new Vector2(560f, 180f));
+            Place(tutorial.heading.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 0.5f),
+                new Vector2(18f, -26f), new Vector2(410f, 30f));
+            Place(tutorial.instructions.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 0.5f),
+                new Vector2(18f, -110f), new Vector2(410f, 116f));
+            Place((RectTransform)skipTutorialButton.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+                new Vector2(-12f, 0f), new Vector2(110f, 76f));
+            if (feedback == null) feedback = GetComponent<MobileGameFeedback>();
+            if (feedback == null) feedback = gameObject.AddComponent<MobileGameFeedback>();
+            feedback.player = player;
+            feedback.cameraRig = cameraRig;
+            if (feedback.toast == null)
+            {
+                feedback.toast = Label("Gameplay feedback", gameplay.transform, "", 24, TextAnchor.MiddleCenter, Vector2.zero, new Vector2(600f, 44f));
+                Place(feedback.toast.rectTransform, new Vector2(0.5f, 0f), Vector2.one * 0.5f, new Vector2(0f, 290f), new Vector2(600f, 44f));
+                var pulse = Image("Landing pulse", jumpControl.transform, Color.clear, false, true);
+                Stretch(pulse.rectTransform);
+                pulse.rectTransform.SetAsFirstSibling();
+                pulse.raycastTarget = false;
+                feedback.landingPulse = pulse;
+            }
+            Place(feedback.toast.rectTransform, new Vector2(0.5f, 0f), Vector2.one * 0.5f,
+                new Vector2(0f, 290f), new Vector2(600f, 44f));
+            if (replayTutorialButton == null)
+            {
+                var dialog = pausePanel.transform.Find("Dialog");
+                replayTutorialButton = MakeButton("Replay tutorial", dialog, "REPLAY TUTORIAL", Vector2.one * 0.5f, Vector2.one * 0.5f, new Vector2(0f, -74f), new Vector2(432f, 76f), new Color(0.18f, 0.28f, 0.4f));
+                Place((RectTransform)resumeButton.transform, Vector2.one * 0.5f, Vector2.one * 0.5f, new Vector2(0f, 16f), new Vector2(432f, 76f));
+                Place((RectTransform)pauseRetryButton.transform, Vector2.one * 0.5f, Vector2.one * 0.5f, new Vector2(0f, -164f), new Vector2(432f, 76f));
+            }
+        }
+
+        public void ReplayTutorial()
+        {
+            ResumeGame();
+            ResetControls();
+            tutorial.StartTutorial();
+            Refresh();
         }
 
         private GameObject Modal(string name, string title, string message, bool pause, bool victory = false)
@@ -309,6 +389,8 @@ namespace GravityGame
             lastRespawn = player.RespawnCount;
             wasLost = player.HasLost;
             wasWon = player.HasWon;
+            tutorial.Tick(Time.deltaTime);
+            feedback.Tick(Time.deltaTime);
             Refresh();
         }
 
@@ -339,6 +421,7 @@ namespace GravityGame
             jumpLabel.color = player.EscapeJumpReady ? Navy : Color.white;
             Vector2 screen = new Vector2(Screen.width, Screen.height);
             if (screen != lastScreen || Screen.safeArea != lastSafeArea) ApplySafeArea(Screen.safeArea, screen);
+            FitTutorialCard();
         }
 
         public void ApplySafeArea(Rect area, Vector2 screen)
@@ -349,6 +432,19 @@ namespace GravityGame
             safeRoot.offsetMin = safeRoot.offsetMax = Vector2.zero;
             lastScreen = screen;
             lastSafeArea = area;
+            Canvas.ForceUpdateCanvases();
+            FitTutorialCard();
+        }
+
+        private void FitTutorialCard()
+        {
+            if (tutorial == null || tutorial.card == null || safeRoot == null) return;
+            var card = (RectTransform)tutorial.card.transform;
+            float width = Mathf.Clamp(safeRoot.rect.width - 580f, 280f, 560f);
+            if (Mathf.Approximately(card.sizeDelta.x, width)) return;
+            card.sizeDelta = new Vector2(width, 180f);
+            tutorial.heading.rectTransform.sizeDelta = new Vector2(width - 150f, 30f);
+            tutorial.instructions.rectTransform.sizeDelta = new Vector2(width - 150f, 116f);
         }
 
         public void PauseGame()
@@ -358,6 +454,7 @@ namespace GravityGame
             resumeTimeScale = Time.timeScale;
             Time.timeScale = 0f;
             player.SetPaused(true);
+            if (feedback != null) feedback.Tick(0f);
             ResetControls();
             Cursor.lockState = CursorLockMode.None;
             Refresh();
@@ -378,6 +475,8 @@ namespace GravityGame
             ResumeGame();
             ResetControls();
             player.Respawn();
+            feedback.Clear();
+            tutorial.Tick(0f);
             Refresh();
         }
 
@@ -386,6 +485,8 @@ namespace GravityGame
             ResumeGame();
             ResetControls();
             player.RestartRun();
+            feedback.Clear();
+            tutorial.Tick(0f);
             Refresh();
         }
 
@@ -413,6 +514,7 @@ namespace GravityGame
         private void OnDisable()
         {
             ResetControls();
+            if (feedback != null) feedback.Clear();
             if (ownsPause)
             {
                 Time.timeScale = resumeTimeScale;

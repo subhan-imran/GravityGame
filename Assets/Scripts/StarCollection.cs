@@ -6,6 +6,7 @@ namespace GravityGame
     {
         public SphericalPlayer player;
         public CollectibleStar[] stars = new CollectibleStar[0];
+        public event System.Action<CollectibleStar> StarCollected;
         public int CollectedCount { get; private set; }
         public int TotalCount => stars.Length;
         public bool AllCollected => TotalCount > 0 && CollectedCount == TotalCount;
@@ -18,6 +19,7 @@ namespace GravityGame
                 System.Array.IndexOf(stars, star) < 0) return false;
             star.SetCollected(true);
             CollectedCount++;
+            StarCollected?.Invoke(star);
             if (AllCollected) player.CompleteStarRun();
             return true;
         }
