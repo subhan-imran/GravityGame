@@ -17,10 +17,19 @@ namespace GravityGame.Editor
 
         public static void Run()
         {
-            MobileDemo.ConfigureLandscape();
-            MobileDemo.UpgradeVictoryScene();
-            SessionState.SetBool(ActiveKey, true);
-            EditorApplication.EnterPlaymode();
+            try
+            {
+                TwoPlanetDemo.ValidateAll();
+                MobileDemo.ConfigureLandscape();
+                MobileDemo.UpgradeStarScene();
+                SessionState.SetBool(ActiveKey, true);
+                EditorApplication.EnterPlaymode();
+            }
+            catch (System.Exception exception)
+            {
+                Debug.LogException(exception);
+                Finish(1);
+            }
         }
 
         private static void OnState(PlayModeStateChange state)
@@ -47,7 +56,7 @@ namespace GravityGame.Editor
                     return;
                 }
                 MobileDemo.RenderCurrentPreviews();
-                Debug.Log("MOBILE_PLAY_MODE_CHECKS_PASSED: rendered touch priority, victory/restart, serialized scene reload, gameplay/pause/loss/victory previews.");
+                Debug.Log("MOBILE_PLAY_MODE_CHECKS_PASSED: rendered touch priority, star collection/restart, serialized scene reload, gameplay/pause/loss/victory previews.");
                 Finish(0);
             }
             catch (System.Exception exception)

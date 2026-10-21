@@ -173,7 +173,7 @@ namespace GravityGame.Editor
                     "Normal jump stays inside home gravity");
                 SetKeys(Key.RightShift, Key.Space);
                 Step(1);
-                Require(Vector3.Dot(body.linearVelocity, player.GravityUp) < 12f, "Shift without a run-up gives a normal jump");
+                Require(Vector3.Dot(body.linearVelocity, player.GravityUp) < 12f, "Shift alone does not skip to the third jump");
                 SetKeys();
                 Step(150);
                 SetKeys(Key.W);
@@ -193,24 +193,34 @@ namespace GravityGame.Editor
                 player.Respawn();
                 Physics.SyncTransforms();
                 Step(50);
-                int countBeforeFlight = player.RespawnCount;
                 SetKeys(Key.W, Key.LeftShift);
                 Step(40);
                 Debug.Log("RUN_SPEED_CHECK: walk=" + walkingSpeed + " rightShift=" + runningSpeed +
                     " leftShift=" + Vector3.ProjectOnPlane(body.linearVelocity, player.GravityUp).magnitude);
                 Require(Vector3.ProjectOnPlane(body.linearVelocity, player.GravityUp).magnitude > player.speed + 4f,
                     "Left Shift increases actual running speed");
-                SetKeys(Key.W, Key.LeftShift, Key.Space);
+                // Return to the spawn pose, then chain two stationary jumps. Running stays optional.
+                SetKeys();
+                player.RestartRun();
+                Step(50);
+                int countBeforeFlight = player.RespawnCount;
+                float firstVelocity = JumpAndLand(1);
+                float secondVelocity = JumpAndLand(2);
+                Require(secondVelocity > firstVelocity && player.EscapeJumpReady, "Consecutive landings unlock a higher third jump");
+                // Walk toward the destination during the last landing window (no Shift).
+                SetKeys(Key.W);
+                Step(45);
+                SetKeys(Key.W, Key.Space);
                 Step(1);
-                for (int i = 0; i < 5 && Vector3.Dot(body.linearVelocity, player.GravityUp) <= 15f; i++) Step(1);
-                Require(Vector3.Dot(body.linearVelocity, player.GravityUp) > 15f, "Running jump is higher than a normal jump");
+                Require(player.JumpChain == 3 && Vector3.Dot(body.linearVelocity, player.GravityUp) > 15f,
+                    "Third jump supplies escape height without running");
                 // Release every key: the successful crossing must come from takeoff momentum.
                 SetKeys();
                 for (int i = 0; i < 450 && !(player.IsGrounded && player.planet == moon); i++) Step(1);
-                Debug.Log("RUN_JUMP_FLIGHT: position=" + body.position + " velocity=" + body.linearVelocity +
+                Debug.Log("THIRD_JUMP_FLIGHT: position=" + body.position + " velocity=" + body.linearVelocity +
                     " planet=" + player.planet.name + " space=" + sawSpace + " respawns=" + (player.RespawnCount - countBeforeFlight));
                 Require(sawSpace && player.planet == moon && player.IsGrounded && player.RespawnCount == countBeforeFlight,
-                    "Run and jump escapes, coasts through space, enters the next field and lands without a direct launch");
+                    "Third jump escapes, coasts through space and lands without Shift or a direct launch");
                 Step(50); // Let the gradual orientation turn settle before checking the landing checkpoint.
                 Require(Mathf.Abs(Vector3.Distance(body.position, moon.transform.position) - 13f) < 0.2f, "Moon surface radius");
                 player.Respawn();
@@ -249,7 +259,7 @@ namespace GravityGame.Editor
                 player.Respawn();
                 cameraStep.Invoke(camera, null);
                 Require(camera.planet == moon && Vector3.Distance(camera.transform.position, body.position) < 15f, "Immediate camera respawn reset");
-                Debug.Log("TWO_PLANET_VALIDATION_PASSED: running jumps, ballistic landing, grace countdown, persistent timeout/distance loss, disabled defeat controls, explicit keyboard/button retry, camera clearance/reset.");
+                Debug.Log("TWO_PLANET_VALIDATION_PASSED: running movement, three-jump chain, ballistic landing, grace countdown, persistent timeout/distance loss, disabled defeat controls, explicit keyboard/button retry, camera clearance/reset.");
             }
             finally
             {
@@ -258,6 +268,19 @@ namespace GravityGame.Editor
                 InputSystem.settings.updateMode = previousInputMode;
                 InputSystem.settings.SetInternalFeatureFlag(editInputFlag, previousEditInput);
                 Physics.simulationMode = previousMode;
+            }
+
+            float JumpAndLand(int expected)
+            {
+                Require(player.IsGrounded, "Chain takeoff requires a landing");
+                SetKeys(Key.Space);
+                Step(1);
+                float velocity = Vector3.Dot(body.linearVelocity, player.GravityUp);
+                Require(player.JumpChain == expected, "One chain step per grounded takeoff");
+                SetKeys();
+                for (int i = 0; i < 350 && !player.IsGrounded && !player.HasLost; i++) Step(1);
+                Require(player.IsGrounded && !player.HasLost && player.planet == home, "First two jumps return to the same planet");
+                return velocity;
             }
 
             void SetKeys(params Key[] keys)

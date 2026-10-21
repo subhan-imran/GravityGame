@@ -14,7 +14,9 @@ namespace GravityGame
         [Min(0f)] public float runSpeed = 14f;
         [Min(0f)] public float acceleration = 35f;
         [Min(0f)] public float jumpHeight = 2f;
-        [Min(0f)] public float runningJumpHeight = 8f;
+        [Min(0f)] public float secondJumpHeight = 3.2f;
+        [FormerlySerializedAs("runningJumpHeight"), Min(0f)] public float thirdJumpHeight = 8f;
+        [Min(0.1f)] public float consecutiveJumpWindow = 1.2f;
         [Range(0f, 1f)] public float airControl = 0.3f;
         [Min(1f)] public float gravityTurnSpeed = 360f;
         [Min(0.1f)] public float switchHysteresis = 3f;
@@ -22,9 +24,7 @@ namespace GravityGame
         [FormerlySerializedAs("respawnDistance"), Min(1f)] public float lossDistance = 120f;
         public bool showTravelHelp;
         public bool useMobileUI;
-        [Tooltip("Leave empty for free play. A stable landing here completes the level.")]
-        public PlanetGravity victoryPlanet;
-        [Min(0.02f)] public float victoryLandingTime = 0.25f;
+        public StarCollection stars;
         public bool IsGrounded { get; private set; }
         public Vector3 GravityUp { get; private set; } = Vector3.up;
         public int RespawnCount { get; private set; }
@@ -36,8 +36,10 @@ namespace GravityGame
         public float SpaceTimeRemaining => Mathf.Max(0f, lostInSpaceDelay - outsideTime);
         public bool IsInGravityField { get; private set; }
         public bool IsRunning => runRequested && input.sqrMagnitude > 0.01f;
-        public bool RunningJumpReady => body != null && IsGrounded && IsRunning &&
-            Vector3.ProjectOnPlane(body.linearVelocity, GravityUp).magnitude >= Mathf.Max(speed, runSpeed * 0.75f);
+        public int JumpChain { get; private set; }
+        public int NextJump => JumpChain > 0 && JumpChain < 3 ? JumpChain + 1 : 1;
+        public bool EscapeJumpReady => IsGrounded && NextJump == 3;
+        public float JumpWindowRemaining => Mathf.Max(0f, consecutiveJumpWindow - comboGroundedTime);
 
         private Rigidbody body;
         private CapsuleCollider capsule;
@@ -54,7 +56,7 @@ namespace GravityGame
         private PlanetGravity startingPlanet;
         private Vector3 startingLocalPosition;
         private Quaternion startingLocalRotation;
-        private float victoryGroundedTime;
+        private float comboGroundedTime;
 
         private void Awake()
         {
@@ -159,7 +161,7 @@ namespace GravityGame
                 (planet == null || !planet.Contains(body.position) || closest.SurfaceDistance(body.position) + switchHysteresis < planet.SurfaceDistance(body.position)))
                 SwitchPlanet(closest);
 
-            if (planet == null) { victoryGroundedTime = 0f; return; }
+            if (planet == null) return;
             IsInGravityField = planet.Contains(body.position);
             Vector3 radialUp = planet.UpAt(body.position);
             Quaternion current = body.rotation;
@@ -176,18 +178,11 @@ namespace GravityGame
                 Vector3.Dot(body.linearVelocity, radialUp) < 1f &&
                 surface.Raycast(new Ray(center, -radialUp), out _, halfHeight + 0.15f);
             if (IsGrounded && Vector3.Dot(GravityUp, radialUp) > 0.98f) SaveCheckpoint();
-            bool safeVictoryLanding = victoryPlanet != null && planet == victoryPlanet &&
-                IsGrounded && Vector3.Dot(GravityUp, radialUp) > 0.98f;
-            victoryGroundedTime = safeVictoryLanding ? victoryGroundedTime + dt : 0f;
-            if (safeVictoryLanding && victoryGroundedTime >= victoryLandingTime)
+            // Only time spent on the ground consumes the chain window. Pause freezes it.
+            if (IsGrounded && JumpChain > 0)
             {
-                HasWon = true;
-                ClearInput();
-                body.linearVelocity = body.angularVelocity = Vector3.zero;
-                body.isKinematic = true;
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-                return;
+                comboGroundedTime += dt;
+                if (JumpChain == 3 || comboGroundedTime > consecutiveJumpWindow) ResetJumpChain();
             }
 
             Vector3 forward = Vector3.ProjectOnPlane(movementCamera != null
@@ -209,10 +204,21 @@ namespace GravityGame
 
             if (IsGrounded && jumpBuffer > 0f)
             {
-                // A high jump needs a real run-up, rather than just holding Shift while stationary.
-                bool runningTakeoff = RunningJumpReady;
-                float height = runningTakeoff ? runningJumpHeight : jumpHeight;
-                float jumpSpeed = Mathf.Sqrt(2f * planet.acceleration * height);
+                JumpChain = NextJump;
+                comboGroundedTime = 0f;
+                float height = JumpChain == 3 ? Mathf.Max(secondJumpHeight, thirdJumpHeight)
+                    : JumpChain == 2 ? Mathf.Max(jumpHeight, secondJumpHeight) : jumpHeight;
+                float energy = planet.acceleration * height;
+                if (JumpChain < 3)
+                {
+                    // Running around a small sphere adds outward motion. Compensate at takeoff so
+                    // the first two jumps keep their intended height even at full running speed.
+                    float radius = Vector3.Distance(body.position, planet.transform.position);
+                    float tangentSpeedSquared = Vector3.ProjectOnPlane(body.linearVelocity, radialUp).sqrMagnitude;
+                    float ratio = radius / (radius + height);
+                    energy += 0.5f * tangentSpeedSquared * (ratio * ratio - 1f);
+                }
+                float jumpSpeed = Mathf.Sqrt(2f * Mathf.Max(0.1f, energy));
                 body.AddForce(radialUp * (jumpSpeed - Vector3.Dot(body.linearVelocity, radialUp)), ForceMode.VelocityChange);
                 jumpBuffer = 0f;
                 groundingLock = 0.2f;
@@ -240,6 +246,7 @@ namespace GravityGame
         private void SwitchPlanet(PlanetGravity destination)
         {
             if (destination == null || destination == planet) return;
+            ResetJumpChain();
             planet = destination;
             IsGrounded = false;
             groundingLock = 0.1f;
@@ -258,6 +265,7 @@ namespace GravityGame
         {
             if (HasLost) return;
             HasLost = true;
+            ResetJumpChain();
             ClearInput();
             IsGrounded = IsInGravityField = false;
             input = Vector2.zero;
@@ -273,8 +281,9 @@ namespace GravityGame
         public void Respawn()
         {
             if (body == null || checkpointPlanet == null) return;
+            if (HasWon) { RestartRun(); return; }
             HasLost = false;
-            HasWon = false;
+            ResetJumpChain();
             ClearInput();
             body.isKinematic = false;
             planet = checkpointPlanet;
@@ -289,7 +298,7 @@ namespace GravityGame
             Physics.SyncTransforms();
             input = Vector2.zero;
             runRequested = false;
-            jumpBuffer = outsideTime = victoryGroundedTime = 0f;
+            jumpBuffer = outsideTime = 0f;
             groundingLock = 0.15f;
             IsGrounded = false;
             IsInGravityField = planet.Contains(body.position);
@@ -300,10 +309,29 @@ namespace GravityGame
         public void RestartRun()
         {
             if (startingPlanet == null) return;
+            HasWon = false;
+            if (stars != null) stars.ResetProgress();
             checkpointPlanet = startingPlanet;
             checkpointLocalPosition = startingLocalPosition;
             checkpointLocalRotation = startingLocalRotation;
             Respawn();
+        }
+
+        private void ResetJumpChain()
+        {
+            JumpChain = 0;
+            comboGroundedTime = 0f;
+        }
+
+        internal void CompleteStarRun()
+        {
+            if (HasWon || HasLost || IsPaused || stars == null || !stars.AllCollected) return;
+            HasWon = true;
+            ClearInput();
+            body.linearVelocity = body.angularVelocity = Vector3.zero;
+            body.isKinematic = true;
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
         }
 
         private void OnGUI()
@@ -322,11 +350,11 @@ namespace GravityGame
             }
             if (!showTravelHelp) return;
             string name = IsInGravityField && planet != null ? planet.name + " gravity" : "Space - " + SpaceTimeRemaining.ToString("0.0") + "s to reach gravity";
-            string jumpStatus = IsGrounded ? (RunningJumpReady ? "High jump ready - press Space" : "Build speed with Shift for a high jump") : "Airborne - carry your momentum";
+            string jumpStatus = IsGrounded ? (EscapeJumpReady ? "Third jump ready - press Space" : "Jump " + NextJump + "/3 - jump again soon after landing") : "Airborne - carry your momentum";
             GUI.Box(new Rect(16, 16, 600, 132), "TWO PLANET DEMO  |  " + name +
                 "\nWASD / arrows: move   Hold Shift: run   Space: jump   Mouse: orbit" +
                 "\n" + jumpStatus +
-                "\nRun toward the other planet; jump after a run-up to clear the gravity rings." +
+                "\nChain three jumps; the third can clear the gravity rings. Shift still runs." +
                 "\nCarry your momentum through space; entering the next field pulls you in.   R: respawn" +
                 "\nEscape: release mouse   Click: capture   Checkpoint: last landing");
         }

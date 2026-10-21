@@ -25,7 +25,7 @@ namespace GravityGame.Editor
             var camera = Object.FindAnyObjectByType<PlanetCamera>();
             player.useMobileUI = true;
             player.showTravelHelp = false;
-            player.victoryPlanet = player.gravitySources[1];
+            StarDemo.Configure(player);
             camera.assisted = true;
             camera.distance = 10f;
             camera.defaultPitch = 8f;
@@ -44,15 +44,15 @@ namespace GravityGame.Editor
         }
 
         // Upgrade the saved mobile scene in place so existing scene objects keep their identity.
-        public static void UpgradeVictoryScene()
+        public static void UpgradeStarScene()
         {
             var scene = EditorSceneManager.OpenScene("Assets/Scenes/MobilePrototype.unity");
             var ui = Object.FindAnyObjectByType<MobileGameUI>();
-            ui.player.victoryPlanet = ui.player.gravitySources[1];
+            StarDemo.Configure(ui.player);
             ui.BuildUI();
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
-            Debug.Log("VICTORY_SCENE_UPGRADED");
+            Debug.Log("STAR_SCENE_UPGRADED");
         }
 
         // Invoke on a temporary project copy with Unity's -buildTarget Android argument.
@@ -135,7 +135,7 @@ namespace GravityGame.Editor
                 finger.position = StickPoint(1f);
                 ExecuteEvents.Execute(stick.gameObject, finger, ExecuteEvents.dragHandler);
                 Step(45);
-                Require(player.IsRunning && player.RunningJumpReady &&
+                Require(player.IsRunning &&
                     Vector3.ProjectOnPlane(body.linearVelocity, player.GravityUp).magnitude > player.speed + 4f, "Outer stick automatically runs");
 
                 var foreign = Pointer(999, finger.position);
@@ -155,7 +155,7 @@ namespace GravityGame.Editor
                         ui.JumpControl.GetComponent<UnityEngine.UI.Image>().raycastTarget, "Jump is authored above the camera look area (rendered routing checked in Play mode)");
                 ExecuteEvents.Execute(ui.JumpControl.gameObject, jumping, ExecuteEvents.pointerDownHandler);
                 Step(1);
-                Require(Vector3.Dot(body.linearVelocity, player.GravityUp) > 15f && stick.HasPointer, "Jump while holding the running finger");
+                Require(Vector3.Dot(body.linearVelocity, player.GravityUp) > 4f && Vector3.Dot(body.linearVelocity, player.GravityUp) < 15f && player.JumpChain == 1 && stick.HasPointer, "Running starts with jump one rather than an escape jump");
                 ExecuteEvents.Execute(ui.JumpControl.gameObject, jumping, ExecuteEvents.pointerUpHandler);
                 ExecuteEvents.Execute(stick.gameObject, finger, ExecuteEvents.pointerUpHandler);
                 Require(!stick.HasPointer && player.MovementInput == Vector2.zero, "Joystick release clears movement");
@@ -202,23 +202,36 @@ namespace GravityGame.Editor
                     "Touch retry restores a playable checkpoint");
                 Step(50);
                 Require(!player.HasWon && !ui.VictoryVisible, "Starting-planet landings do not complete the level");
+                JumpChainChecks.Validate(player, ui, Step);
                 PlanetGravity home = player.planet;
-                PlanetGravity goal = player.victoryPlanet;
-                Require(goal != null && goal != home, "Mobile victory destination is the second planet");
-                PlaceAtGoal(3f);
-                Step(10);
-                Require(player.IsInGravityField && !player.IsGrounded && !player.HasWon, "Entering destination gravity while airborne is not victory");
-                PlaceAtGoal(1.05f);
-                Step(2);
-                Require(!player.HasWon, "Brief surface contact does not immediately win");
-                PlaceAtGoal(3f);
+                PlanetGravity goal = player.gravitySources[1];
+                PlaceOnEmber(1.05f);
+                Step(70);
+                Require(player.IsGrounded && !player.HasWon, "Landing anywhere on Ember remains free exploration");
+                var objective = player.stars;
+                Require(objective != null && objective.TotalCount == 3 && objective.CollectedCount == 0 &&
+                    ui.StarCounterText == "STARS  0 / 3", "Three authored stars and visible progress counter");
+                var stars = objective.stars;
+                // Use real physics trigger callbacks in Play mode; direct dispatch covers headless edit validation.
+                CollectStar(stars[1]);
+                Require(objective.CollectedCount == 1 && stars[1].Collected && !stars[1].visual.gameObject.activeSelf &&
+                    !stars[1].GetComponent<Collider>().enabled && !player.HasWon && ui.StarCounterText == "STARS  1 / 3", "Any order pickup hides the star and updates progress");
+                Require(!objective.TryCollect(stars[1], player) && objective.CollectedCount == 1, "Repeated contacts cannot count twice");
+                Require(!objective.TryCollect(stars[0], null), "Non-player contacts cannot collect");
+                ui.PauseGame();
+                Require(!objective.TryCollect(stars[0], player) && objective.CollectedCount == 1, "Pause prevents collection");
+                ui.ResumeGame();
+                body.position = Vector3.one * 500f;
+                Physics.SyncTransforms();
                 Step(1);
-                PlaceAtGoal(1.05f);
-                Step(8);
-                Require(!player.HasWon, "Breaking contact resets the stable-landing timer");
-                Step(30);
-                Require(player.HasWon && ui.VictoryVisible && !ui.LossVisible && !ui.PauseVisible &&
-                    !ui.Joystick.gameObject.activeInHierarchy && body.isKinematic, "Stable destination landing shows victory and freezes gameplay");
+                Require(player.HasLost && !objective.TryCollect(stars[0], player), "Defeat prevents collection");
+                Click(ui.RetryButton.gameObject);
+                Require(objective.CollectedCount == 1 && stars[1].Collected, "Retry retains collected stars");
+                CollectStar(stars[0]);
+                Require(objective.CollectedCount == 2 && !player.HasWon && !ui.VictoryVisible, "Two stars are not victory");
+                CollectStar(stars[2]);
+                Require(objective.AllCollected && player.HasWon && ui.VictoryVisible && !ui.LossVisible && !ui.PauseVisible &&
+                    !ui.Joystick.gameObject.activeInHierarchy && body.isKinematic, "Only the last star opens victory and freezes gameplay");
                 Vector3 wonPosition = body.position;
                 player.SetTouchMovement(Vector2.up);
                 player.RequestJump();
@@ -236,11 +249,12 @@ namespace GravityGame.Editor
                 int restarts = player.RespawnCount;
                 ExecuteEvents.Execute(ui.PlayAgainButton.gameObject, playAgainTouch, ExecuteEvents.pointerClickHandler);
                 Require(!player.HasWon && !player.HasLost && !player.IsPaused && !ui.VictoryVisible &&
-                    !body.isKinematic && player.planet == home && player.RespawnCount == restarts + 1 && player.MovementInput == Vector2.zero,
+                    !body.isKinematic && player.planet == home && objective.CollectedCount == 0 &&
+                    System.Array.TrueForAll(stars, star => !star.Collected && star.visual.gameObject.activeSelf && star.GetComponent<Collider>().enabled) && player.RespawnCount == restarts + 1 && player.MovementInput == Vector2.zero,
                     "Play Again starts on the original planet instead of the winning checkpoint");
                 Step(50);
                 Require(player.IsGrounded && !player.HasWon && !ui.VictoryVisible, "New attempt remains playable on the starting planet");
-                Debug.Log("VICTORY_VALIDATION_PASSED: gravity entry versus stable landing, contact reset, terminal controls, rendered Play Again routing, fresh starting-planet attempt.");
+                Debug.Log("STAR_VALIDATION_PASSED: free landings, physics pickups in any order, duplicate/pause/defeat guards, counter, retry persistence, last-star victory, rendered Play Again routing and full star reset.");
                 ui.PauseGame();
                 typeof(MobileGameUI).GetMethod("OnDisable", flags).Invoke(ui, null);
                 Require(Time.timeScale == 1f && !player.IsPaused, "Leaving the scene cannot leave the global clock paused");
@@ -269,14 +283,25 @@ namespace GravityGame.Editor
                 { pointerId = id, position = position, button = PointerEventData.InputButton.Left,
                     pointerPressRaycast = new RaycastResult { module = ui.GetComponentInChildren<UnityEngine.UI.GraphicRaycaster>() } };
             void Click(GameObject button) => ExecuteEvents.Execute(button, Pointer(404, ScreenPoint(button.transform)), ExecuteEvents.pointerClickHandler);
-            void PlaceAtGoal(float altitude)
+            void PlaceOnEmber(float altitude)
             {
-                body.position = player.victoryPlanet.transform.position + Vector3.up * (player.victoryPlanet.Radius + altitude);
+                body.position = player.gravitySources[1].transform.position + Vector3.up * (player.gravitySources[1].Radius + altitude);
                 body.rotation = Quaternion.identity;
                 body.linearVelocity = Vector3.zero;
-                player.planet = player.victoryPlanet;
+                player.planet = player.gravitySources[1];
                 player.transform.SetPositionAndRotation(body.position, body.rotation);
                 Physics.SyncTransforms();
+            }
+            void CollectStar(CollectibleStar star)
+            {
+                body.position = star.transform.position;
+                body.rotation = star.transform.rotation;
+                body.linearVelocity = Vector3.zero;
+                player.planet = star.planet;
+                player.transform.SetPositionAndRotation(body.position, body.rotation);
+                Physics.SyncTransforms();
+                if (Application.isPlaying) Step(3);
+                else { Require(player.stars.TryCollect(star, player), "Edit-mode pickup dispatch"); ui.Refresh(); }
             }
             void Step(int count)
             {
@@ -339,22 +364,8 @@ namespace GravityGame.Editor
                 ui.Refresh();
                 Capture("mobile-loss.png");
                 ui.PlayAgain();
-                var goal = ui.player.victoryPlanet;
-                var body = ui.player.GetComponent<Rigidbody>();
-                ui.player.planet = goal;
-                body.position = goal.transform.position + Vector3.up * (goal.Radius + 1.05f);
-                body.rotation = Quaternion.identity;
-                ui.player.transform.SetPositionAndRotation(body.position, body.rotation);
-                Physics.SyncTransforms();
-                var previewMode = Physics.simulationMode;
-                Physics.simulationMode = SimulationMode.Script;
-                for (int i = 0; i < 60; i++)
-                {
-                    typeof(SphericalPlayer).GetMethod("FixedUpdate", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(ui.player, null);
-                    Physics.Simulate(Time.fixedDeltaTime);
-                }
-                Physics.simulationMode = previewMode;
-                typeof(PlanetCamera).GetMethod("LateUpdate", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(ui.cameraRig, null);
+                foreach (var star in ui.player.stars.stars) ui.player.stars.TryCollect(star, ui.player);
+                Require(ui.player.HasWon, "Preview wins by collecting every star");
                 Capture("mobile-victory.png");
             }
             finally

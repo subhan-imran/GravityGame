@@ -24,6 +24,7 @@ namespace GravityGame
         [SerializeField] private Button pauseRetryButton;
         [SerializeField] private Button lossRetryButton;
         [SerializeField] private Button playAgainButton;
+        [SerializeField] private Text starCounter;
         [SerializeField] private Text status;
         [SerializeField] private Text hint;
         [SerializeField] private Text jumpLabel;
@@ -55,6 +56,7 @@ namespace GravityGame
         public EventSystem Events => eventSystem;
         public bool PauseVisible => pausePanel != null && pausePanel.activeSelf;
         public bool LossVisible => lossPanel != null && lossPanel.activeSelf;
+        public string StarCounterText => starCounter != null ? starCounter.text : "";
         public bool VictoryVisible => victoryPanel != null && victoryPanel.activeSelf;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
@@ -116,6 +118,7 @@ namespace GravityGame
             if (canvas != null)
             {
                 BuildVictoryUI();
+                BuildObjectiveUI();
                 return;
             }
             var canvasObject = new GameObject("Mobile Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -160,7 +163,7 @@ namespace GravityGame
             jumpImage = jumpButton.image;
             jumpLabel = jumpButton.GetComponentInChildren<Text>();
             jumpControl = Touch(jumpImage, MobileControlKind.Jump);
-            var caption = Label("Flight caption", gameplay.transform, "RUN. JUMP. REACH THE NEXT PLANET.", 20, TextAnchor.MiddleCenter, Vector2.zero, new Vector2(560f, 48f));
+            var caption = Label("Flight caption", gameplay.transform, "EXPLORE BOTH PLANETS. COLLECT EVERY STAR.", 20, TextAnchor.MiddleCenter, Vector2.zero, new Vector2(560f, 48f));
             Place(caption.rectTransform, new Vector2(0.5f, 0f), Vector2.one * 0.5f, new Vector2(0f, 32f), new Vector2(560f, 48f));
 
             pausePanel = Modal("Pause overlay", "Paused", "Your jump can wait.\nResume when you're ready.", true);
@@ -168,6 +171,7 @@ namespace GravityGame
             pausePanel.SetActive(false);
             lossPanel.SetActive(false);
             BuildVictoryUI();
+            BuildObjectiveUI();
             eventSystem = Object.FindAnyObjectByType<EventSystem>();
             if (eventSystem == null)
             {
@@ -180,8 +184,25 @@ namespace GravityGame
         private void BuildVictoryUI()
         {
             if (victoryPanel != null) return;
-            victoryPanel = Modal("Victory overlay", "Planet reached!", "You landed on the next planet.\nReady for another jump?", false, true);
+            victoryPanel = Modal("Victory overlay", "All stars collected!", "You explored both planets and found every star.", false, true);
             victoryPanel.SetActive(false);
+        }
+
+        private void BuildObjectiveUI()
+        {
+            if (starCounter == null)
+            {
+                var card = Image("Star counter card", gameplay.transform, Navy);
+                Place(card.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-166f, -24f), new Vector2(196f, 96f));
+                card.raycastTarget = false;
+                starCounter = Label("Star count", card.transform, "STARS  0 / 3", 26, TextAnchor.MiddleCenter, Vector2.zero, new Vector2(196f, 96f));
+                Stretch(starCounter.rectTransform);
+                starCounter.color = Gold;
+            }
+            // Also upgrade existing authored UI without rebuilding its controls.
+            victoryPanel.transform.Find("Dialog/Heading").GetComponent<Text>().text = "All stars collected!";
+            victoryPanel.transform.Find("Dialog/Description").GetComponent<Text>().text = "You explored both planets and found every star.";
+            gameplay.transform.Find("Flight caption").GetComponent<Text>().text = "EXPLORE BOTH PLANETS. COLLECT EVERY STAR.";
         }
 
         private GameObject Modal(string name, string title, string message, bool pause, bool victory = false)
@@ -302,11 +323,20 @@ namespace GravityGame
             status.text = player.IsInGravityField && player.planet != null
                 ? player.planet.name.ToUpperInvariant() + "  /  GRAVITY ACTIVE"
                 : "SPACE  /  " + player.SpaceTimeRemaining.ToString("0.0") + "s TO FIND GRAVITY";
-            hint.text = player.RunningJumpReady ? "High jump ready - tap JUMP"
-                : player.IsGrounded ? "Push the stick fully to run" : "Carry your momentum to the next planet";
-            jumpImage.color = player.RunningJumpReady ? Gold : Blue;
-            jumpLabel.text = player.RunningJumpReady ? "HIGH\nJUMP" : "JUMP";
-            jumpLabel.color = player.RunningJumpReady ? Navy : Color.white;
+            if (player.stars != null)
+            {
+                string progress = "STARS  " + player.stars.CollectedCount + " / " + player.stars.TotalCount;
+                if (starCounter.text != progress) starCounter.text = progress;
+            }
+            hint.fontSize = 18;
+            hint.text = player.IsGrounded
+                ? player.JumpChain > 0 ? "Jump again in " + player.JumpWindowRemaining.ToString("0.0") + "s  /  next " + player.NextJump + "/3"
+                    : "Chain 3 jumps to escape gravity - running is optional"
+                : player.JumpChain > 0 && player.JumpChain < 3 ? "Jump " + player.JumpChain + "/3 - tap again just after landing"
+                    : "Explore freely. Find all the stars to win.";
+            jumpImage.color = player.EscapeJumpReady ? Gold : Blue;
+            jumpLabel.text = player.EscapeJumpReady ? "ESCAPE\n3 / 3" : "JUMP\n" + player.NextJump + " / 3";
+            jumpLabel.color = player.EscapeJumpReady ? Navy : Color.white;
             Vector2 screen = new Vector2(Screen.width, Screen.height);
             if (screen != lastScreen || Screen.safeArea != lastSafeArea) ApplySafeArea(Screen.safeArea, screen);
         }
