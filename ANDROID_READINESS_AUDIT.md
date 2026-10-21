@@ -1,0 +1,61 @@
+# GravityGame Android readiness audit
+
+Reviewed 21 October 2026. Unity 6000.5.9f1, URP 17.5.0, Input System 1.20.0.
+
+**Verdict: suitable for Android prototype testing after the build fix; not ready for a Google Play production release.** This reviews the game source, all four scenes and their build selection, package dependencies, Android/player/quality settings, mobile UI and lifecycle code, and the available APK. It does not certify Google Play acceptance or performance on phones that have not been tested.
+
+## Confirmed build blocker fixed
+
+`com.unity.pipeline` 0.9.0-exp.1 called `GetSubtarget<StandaloneBuildSubtarget>()` for an Android report before checking whether its runtime feature was enabled. Changing Development Build alone cannot avoid that call. The package is an editor automation/live-reload bridge; no game code references it. Removed its direct dependency and used Unity's resolved lock to remove its orphaned dependency and update dependency depth. URP graphics rendering remains installed. This persists across cache regeneration; no Library/PackageCache patch is needed. Removing the package also removes its optional editor/live-reload connection feature.
+
+The isolated Android rebuild passed the formerly failing preprocessor and is being packaged. Final build results and artifact checks are recorded below when complete.
+
+## Build and release findings
+
+| Area | Evidence | Result / action |
+| --- | --- | --- |
+| Android backend and CPU | Project: IL2CPP; AndroidTargetArchitectures 2 (ARM64). Available APK: `arm64-v8a` and `libil2cpp.so`. | Pass for the ARM64 prototype. ARMv7 is optional, not required for this prototype. |
+| OS support | Project and APK minimum SDK 26. | Android 8.0+ is an intentional compatibility floor, not a policy failure. |
+| Target API | Project's manual setting is Automatic (0); prototype builder pins 36; available APK targets 36. | Tested artifact meets the current API floor. Pin/verify the release build rather than assuming Automatic always resolves to the desired installed SDK. Google Play currently requires API 36+ for new phone apps and updates. [Target API requirements](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en). |
+| App identity | Main Android identifier is `com.UnityTechnologies.com.unity.template.urpblank`; company is DefaultCompany. Prototype builder instead uses `com.gravitygame.prototype`. | Release blocker: choose the final publisher-owned identifier before publication. It must be consistent across builds and updates. The prototype ID is a testing choice, not proof of ownership or availability. |
+| Launch scene | Global build list enables only SampleScene. MobilePrototype contains the actual touch game and Ember victory target. Prototype builder explicitly includes MobilePrototype. | Fix the Android profile's scene override before ordinary editor/store builds. MobilePrototype should be its first enabled scene. Preserve desktop scene choices separately. |
+| Artifact and signing | Existing builder sets Development, APK output and debug signing; no custom keystore is configured in the main project. | Release blocker: produce a non-development AAB with an owner-controlled upload key and Play App Signing. Debug APKs are for device testing. [App Bundles](https://developer.android.com/guide/app-bundle), [Signing and upload](https://developer.android.com/studio/publish/upload-bundle). |
+| Versioning | Version 0.1.0, versionCode 1. | Valid for initial testing. Set the intended release version and increase versionCode for every subsequent Play upload. |
+| 16 KB compatibility | Available APK passes `zipalign -c -P 16 4`; all six ARM64 libraries have compatible LOAD segment alignment. | Binary checks pass for that artifact. Repeat for every rebuilt package and test on a 16 KB device/emulator. Do not infer compatibility solely from Unity's version. [Android 16 KB guidance](https://developer.android.com/guide/practices/page-sizes). |
+| Permissions | Available APK declares INTERNET and its internal signature-protected dynamic-receiver permission. No camera, microphone, location or storage permission appears. No custom Android plugins/manifests, ads or billing SDK integrations were found under Assets. | Good permission scope for the prototype. INTERNET is still present; verify actual release traffic and SDK behavior before declaring no collection. |
+| Graphics | Android defaults to the Mobile quality tier; SRP Batcher on; render scale 0.8; forward renderer; no renderer features. HDR remains on. Builder selects OpenGL ES 3. | Reasonable starting configuration. HDR/shadow/post-processing cost needs measurement before reducing quality or claiming a frame-rate guarantee. Manual profile graphics APIs may differ from the builder. |
+| Serialized asset references | A GUID-to-meta scan found 11 unresolved references: four script references in shared DefaultVolumeProfile (OutlineVolumeComponent, TestAnimationCurveVolumeComponent, OasisFogVolumeComponent, TestVolume) and seven legacy probe-debug resources in PC_Renderer. The volume profile also contains editor-test component entries. No unresolved references were found in the four scene files by this scan. | Asset cleanup required before release: back up/review the shared volume profile in Unity and repair/remove unavailable test/custom effects; validate desktop debug references separately. A text scan does not prove every unresolved optional resource causes a runtime fault. Existing rendering edits were preserved. |
+| Branding | Android icon slots are empty; template/company branding remains. | Provide adaptive/launcher icons and store artwork before release. No final branding was invented during this audit. |
+
+## Gameplay, touch and lifecycle review
+
+- Independent pointer ownership supports joystick + jump + camera together. Wrong-finger releases cannot steal the joystick. Running uses a dead zone and two thresholds to prevent flicker.
+- Jump, pause, resume, retry and victory replay have large controls. Text does not intercept touch raycasts. Safe-area anchors and a scaling canvas are present. Automated rendered tests passed for the current scene, including Play Again routing and scene reloading.
+- Both landscape directions and a 60 FPS target are applied on mobile at runtime. Player Settings still allow portrait at startup; align the Android profile's launch settings with the intended landscape experience. The runtime frame-rate target is not a measured performance result.
+- Focus loss and background interruptions pause active gameplay and clear held input. Resume is explicit. Pause-clock cleanup was tested. A stable Ember landing wins; replay returns to Azure; floating outside all fields still loses.
+- Android system Back is handled only through the Input System keyboard Escape path. Gesture Back/predictive Back, a device with no keyboard, and Back from pause/victory need actual phone testing before calling navigation complete. There is no dedicated in-game exit flow.
+- Checkpoints and victory are memory-only. Android process termination starts a new run; no persistent progress/settings recovery exists. Decide the intended behavior before adding longer levels. Background pause itself is implemented.
+- No gameplay web requests, account system, advertising or purchase calls were found in the game scripts. However, Engine Diagnostics is enabled in UnityConnectSettings and the artifact has INTERNET permission. Audit the release SDK configuration and traffic before completing Data safety. Absence of ad code is not proof that the engine transmits no data.
+- UI gravity status creates formatted strings during Refresh, including repeated planet-name uppercasing. This is a possible small recurring allocation, not a measured frame-rate defect. Cache status changes if profiling shows GC spikes. Physics/camera loops use bounded arrays and no obvious unbounded spawn/collection growth was found.
+- Scene geometry and materials are simple. There is no evidence yet for sustained FPS, low battery use, thermal stability or crash-free device operation. Editor simulation cannot establish those results.
+- The untracked PerformanceTestRunInfo/PerformanceTestRunSettings JSON files under Assets/Resources are generated by Unity's performance-test build preprocessor. It normally cleans them after a successful build; a failed build can leave them behind. They were not committed as gameplay assets. Review the final Resources contents and avoid committing generated test output.
+
+## Release work outside the repository
+
+Complete the Play Console app identity, signing enrollment, listing screenshots, icon, support details, content rating, audience/ads declarations and Data safety. A privacy policy is still required even for an app that does not access personal/sensitive data. No privacy URL or in-app privacy page is currently implemented. [App-content requirements](https://support.google.com/googleplay/android-developer/answer/9859455?hl=en).
+
+Developer verification, account-specific testing requirements and Play pre-launch reports must be checked in the owner's Play Console. No upload, publication, declaration or signing-key creation was performed during this audit.
+
+## Device acceptance checks still required
+
+1. Install on at least a lower-spec supported ARM64 phone and a recent Android phone. Check cold launch, the correct first scene, offline play, repeated wins/losses/retries and fresh launch after Android kills the process.
+2. Use three fingers together; move off each touch target; interrupt while holding controls; lock/unlock; background/foreground; open system panels; disconnect a controller. Ensure nothing sticks or resumes unexpectedly.
+3. Check gesture Back and three-button Back from gameplay, pause, defeat and victory. Review cutouts, gesture insets, 16:9 and tall phones, both landscape rotations, tablet/foldable windows and readable text/tap targets. Landscape support does not establish every resizable-window layout.
+4. Profile a release-like build for 15–20 minutes: CPU/GPU frame times, GC allocations, memory growth, physics stability, battery and thermal throttling. Set a device-tier target such as a stable 30 or 60 FPS based on measurements.
+5. Validate a 16 KB emulator/device and the final signed AAB through an internal Play track and pre-launch report. Recheck the actual generated APK permissions/native libraries rather than relying on this prototype's results.
+
+## Reproducible package check
+
+Run `Tools/Verify-AndroidApk.ps1 -ApkPath <apk>` after a test build. It verifies target API (36 by default for this audit date), a non-template identifier, ARM64 support, the APK signature, 16 KB ZIP alignment and every ARM64 ELF LOAD segment, then writes an ignored JSON report with the APK SHA-256 and permissions. `-RequireRelease` additionally rejects a debuggable package; it is not a substitute for AAB/signing/Play/device checks.
+
+The earlier APK was verified successfully: SDK 26–36, package `com.gravitygame.prototype`, six ARM64 libraries, valid signature, compatible ZIP/ELF alignment. It predates landing victory and remains a development build. Its report is `Builds/MobilePrototype/android-previous-apk-audit.json`.

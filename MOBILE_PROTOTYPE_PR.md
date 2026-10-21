@@ -10,6 +10,6 @@ Validation passed in a graphics-enabled Play mode run: actual rendered jump-vers
 
 Branch: `codex/mobile-prototype`, based on `codex/lost-in-space`. GitHub publication remains pending authentication.
 
-Android build note: the existing experimental live-reload package (`com.unity.pipeline` 0.9.0-exp.1) calls a desktop-only subtarget API on Android. The test build uses a temporary copy with that unused dependency excluded; the main manifest and package lock remain unchanged. The build entry point targets ARM64, OpenGL ES 3 and SDK 36 with debug signing. See README to reproduce.
+Android build note: the experimental editor/live-reload package (`com.unity.pipeline` 0.9.0-exp.1) calls a desktop-only subtarget API on Android. That unused dependency has now been removed from the project manifest and Unity-resolved package lock so normal Android builds also avoid the exception. URP remains installed. The build entry point targets ARM64, OpenGL ES 3 and SDK 36 with debug signing. See README to reproduce.
 
 Android development packaging completed with `MOBILE_ANDROID_BUILD_PASSED` and exit code 0. The local ignored artifact is `Builds/MobilePrototype/GravityGame-Prototype.apk` (43,039,737 bytes). Android tooling confirms package `com.gravitygame.prototype`, minimum SDK 26, target SDK 36, ARM64, and a valid APK v2 signature. Installation and physical-device play have not been tested.
