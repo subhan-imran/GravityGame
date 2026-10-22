@@ -1,5 +1,19 @@
 # GravityGame — Mobile Prototype
 
+## First Expedition level
+
+Open `Assets/Scenes/FirstExpedition.unity` for the first exploration level: Azure (radius 20), Ember (12) and green Verdant (9), with two stars per planet. The triangular layout allows travel in either direction between every pair, with short gaps of space between finite gravity fields. Collect all six stars in any order to win; land anywhere and choose your own route. Jumps 1 and 2 remain bound to their source planet; only jump 3 escapes. Retry retains collected stars and returns to the last safe landing. Replay restores all six stars and starts on Azure.
+
+The tutorial, feedback and mobile controls carry over. The existing `MobilePrototype.unity` remains the two-planet, three-star version, and the user's build profile stays unchanged. To build the new level through Unity, select **FirstExpedition** as the enabled launch scene in the Android Build Profile. Use **GravityGame > Create First Expedition Level** to recreate it from the saved mobile prototype; the menu asks before replacing an existing First Expedition scene.
+
+Run the new level's rendered checks on a temporary copy with `-batchmode -buildTarget Android -projectPath <copy> -executeMethod GravityGame.Editor.MobilePlayModeChecks.RunFirstExpedition -logFile <log>` (without `-quit`; the check exits itself). This includes the existing gameplay checks, lower-jump containment on all three planets, six real bidirectional third-jump crossings and checkpoint retries, six-star victory/replay and saved-scene reloading.
+
+Verified October 22, 2026 with Unity 6000.5.9f1: exit 0 and all validation markers in `Logs/first-expedition-validation.log`. All six routes crossed space and landed without automatic travel or retry. The 72 lower-jump stress flights covered three planets, six poles, two timestep sizes and both lower stages, with held running, outward impulses and large configured jump heights. Rendered gameplay and victory previews were reviewed; the six-star counter and new planet are visible. The existing tutorial APK described below has not been rebuilt with this separate level.
+
+Use [PHONE_PLAYTEST_CHECKLIST.md](PHONE_PLAYTEST_CHECKLIST.md) for the deferred device test. It distinguishes the earlier tutorial APK from the new six-star level; editor checks cannot confirm phone feel, performance or lifecycle behavior.
+
+## Two-planet mobile prototype
+
 Open `Assets/Scenes/MobilePrototype.unity` and press Play. The separate mobile scene preserves TwoPlanets and PhaseOne. The game is locked to horizontal Landscape Left at launch, before the splash screen, during gameplay and when returning from the background. Automatic portrait rotation is disabled. Mobile runtime targets 60 FPS (device performance still needs measurement).
 
 The updated Android test APK is `C:/Users/Artemis/OneDrive/Apps/game.apk` (Android 8.0+, ARM64, about 62 MB), built directly to Unity's saved destination on October 22, 2026. The tutorial update adds guided practice, jump/landing/star feedback and strict gravity containment for jumps 1 and 2. The build and fixed-landscape, signature and 16 KB native/ZIP alignment checks passed. Earlier star-exploration APKs remain in `Builds/MobilePrototype`. Generated builds are ignored by Git. See `TUTORIAL_FEEDBACK_PR.md` for validation and the latest build result.

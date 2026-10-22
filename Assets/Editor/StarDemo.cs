@@ -23,7 +23,7 @@ namespace GravityGame.Editor
             };
         }
 
-        private static CollectibleStar Create(StarCollection collection, PlanetGravity planet, Vector3 normal, string name)
+        internal static CollectibleStar Create(StarCollection collection, PlanetGravity planet, Vector3 normal, string name)
         {
             normal.Normalize();
             var node = new GameObject("Star / " + name, typeof(SphereCollider), typeof(CollectibleStar));

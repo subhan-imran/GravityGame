@@ -10,18 +10,25 @@ namespace GravityGame.Editor
     public static class MobilePlayModeChecks
     {
         private const string ActiveKey = "GravityGame.MobileChecks.Active";
+        private const string SceneKey = "GravityGame.MobileChecks.Scene";
         private static int firstFrame;
         private static bool renderPhase;
 
         static MobilePlayModeChecks() => EditorApplication.playModeStateChanged += OnState;
 
-        public static void Run()
+        public static void Run() => StartChecks(false);
+
+        public static void RunFirstExpedition() => StartChecks(true);
+
+        private static void StartChecks(bool expedition)
         {
             try
             {
                 TwoPlanetDemo.ValidateAll();
                 MobileDemo.ConfigureLandscape();
-                MobileDemo.UpgradeStarScene();
+                if (expedition) FirstExpedition.CreateLevel();
+                else MobileDemo.UpgradeStarScene();
+                SessionState.SetString(SceneKey, expedition ? FirstExpedition.ScenePath : "Assets/Scenes/MobilePrototype.unity");
                 SessionState.SetBool(ActiveKey, true);
                 EditorApplication.EnterPlaymode();
             }
@@ -50,7 +57,7 @@ namespace GravityGame.Editor
                     MobileDemo.BeginInteractionRender();
                     try { MobileDemo.ValidateCurrentScene(); }
                     finally { MobileDemo.EndInteractionRender(); }
-                    EditorSceneManager.LoadSceneInPlayMode("Assets/Scenes/MobilePrototype.unity", new LoadSceneParameters(LoadSceneMode.Single));
+                    EditorSceneManager.LoadSceneInPlayMode(SessionState.GetString(SceneKey, "Assets/Scenes/MobilePrototype.unity"), new LoadSceneParameters(LoadSceneMode.Single));
                     renderPhase = true;
                     firstFrame = Time.frameCount;
                     return;

@@ -56,7 +56,7 @@ namespace GravityGame.Editor
             AssetDatabase.SaveAssets();
         }
 
-        private static PlanetGravity CreatePlanet(string name, Vector3 position, float radius, Color color)
+        internal static PlanetGravity CreatePlanet(string name, Vector3 position, float radius, Color color)
         {
             var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             sphere.name = name;

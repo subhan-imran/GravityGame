@@ -216,19 +216,20 @@ namespace GravityGame.Editor
                 Require(!player.HasWon && !ui.VictoryVisible, "Starting-planet landings do not complete the level");
                 JumpChainChecks.Validate(player, ui, Step);
                 TutorialFeedbackChecks.Validate(player, ui, Step);
+                if (player.gravitySources.Length == 3) FirstExpeditionChecks.Validate(player, ui, Step);
                 PlanetGravity home = player.planet;
                 PlanetGravity goal = player.gravitySources[1];
                 PlaceOnEmber(1.05f);
                 Step(70);
                 Require(player.IsGrounded && !player.HasWon, "Landing anywhere on Ember remains free exploration");
                 var objective = player.stars;
-                Require(objective != null && objective.TotalCount == 3 && objective.CollectedCount == 0 &&
-                    ui.StarCounterText == "STARS  0 / 3", "Three authored stars and visible progress counter");
+                Require(objective != null && objective.TotalCount >= 3 && objective.CollectedCount == 0 &&
+                    ui.StarCounterText == "STARS  0 / " + objective.TotalCount, "Authored stars and visible progress counter");
                 var stars = objective.stars;
                 // Use real physics trigger callbacks in Play mode; direct dispatch covers headless edit validation.
                 CollectStar(stars[1]);
                 Require(objective.CollectedCount == 1 && stars[1].Collected && !stars[1].visual.gameObject.activeSelf &&
-                    !stars[1].GetComponent<Collider>().enabled && !player.HasWon && ui.StarCounterText == "STARS  1 / 3", "Any order pickup hides the star and updates progress");
+                    !stars[1].GetComponent<Collider>().enabled && !player.HasWon && ui.StarCounterText == "STARS  1 / " + objective.TotalCount, "Any order pickup hides the star and updates progress");
                 Require(!objective.TryCollect(stars[1], player) && objective.CollectedCount == 1, "Repeated contacts cannot count twice");
                 Require(!objective.TryCollect(stars[0], null), "Non-player contacts cannot collect");
                 ui.PauseGame();
@@ -242,7 +243,12 @@ namespace GravityGame.Editor
                 Require(objective.CollectedCount == 1 && stars[1].Collected, "Retry retains collected stars");
                 CollectStar(stars[0]);
                 Require(objective.CollectedCount == 2 && !player.HasWon && !ui.VictoryVisible, "Two stars are not victory");
-                CollectStar(stars[2]);
+                for (int i = 2; i < stars.Length - 1; i++)
+                {
+                    CollectStar(stars[i]);
+                    Require(!player.HasWon && !ui.VictoryVisible, "Every star is required, including those on the third planet");
+                }
+                CollectStar(stars[stars.Length - 1]);
                 Require(objective.AllCollected && player.HasWon && ui.VictoryVisible && !ui.LossVisible && !ui.PauseVisible &&
                     !ui.Joystick.gameObject.activeInHierarchy && body.isKinematic, "Only the last star opens victory and freezes gameplay");
                 Vector3 wonPosition = body.position;

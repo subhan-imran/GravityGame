@@ -178,7 +178,7 @@ namespace GravityGame
             jumpImage = jumpButton.image;
             jumpLabel = jumpButton.GetComponentInChildren<Text>();
             jumpControl = Touch(jumpImage, MobileControlKind.Jump);
-            var caption = Label("Flight caption", gameplay.transform, "EXPLORE BOTH PLANETS. COLLECT EVERY STAR.", 20, TextAnchor.MiddleCenter, Vector2.zero, new Vector2(560f, 48f));
+            var caption = Label("Flight caption", gameplay.transform, "EXPLORE THE PLANETS. COLLECT EVERY STAR.", 20, TextAnchor.MiddleCenter, Vector2.zero, new Vector2(560f, 48f));
             Place(caption.rectTransform, new Vector2(0.5f, 0f), Vector2.one * 0.5f, new Vector2(0f, 32f), new Vector2(560f, 48f));
 
             pausePanel = Modal("Pause overlay", "Paused", "Your jump can wait.\nResume when you're ready.", true);
@@ -200,7 +200,7 @@ namespace GravityGame
         private void BuildVictoryUI()
         {
             if (victoryPanel != null) return;
-            victoryPanel = Modal("Victory overlay", "All stars collected!", "You explored both planets and found every star.", false, true);
+            victoryPanel = Modal("Victory overlay", "All stars collected!", "You explored the planets and found every star.", false, true);
             victoryPanel.SetActive(false);
         }
 
@@ -211,14 +211,14 @@ namespace GravityGame
                 var card = Image("Star counter card", gameplay.transform, Navy);
                 Place(card.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-166f, -24f), new Vector2(196f, 96f));
                 card.raycastTarget = false;
-                starCounter = Label("Star count", card.transform, "STARS  0 / 3", 26, TextAnchor.MiddleCenter, Vector2.zero, new Vector2(196f, 96f));
+                starCounter = Label("Star count", card.transform, "STARS  0 / " + (player.stars != null ? player.stars.TotalCount : 0), 26, TextAnchor.MiddleCenter, Vector2.zero, new Vector2(196f, 96f));
                 Stretch(starCounter.rectTransform);
                 starCounter.color = Gold;
             }
             // Also upgrade existing authored UI without rebuilding its controls.
             victoryPanel.transform.Find("Dialog/Heading").GetComponent<Text>().text = "All stars collected!";
-            victoryPanel.transform.Find("Dialog/Description").GetComponent<Text>().text = "You explored both planets and found every star.";
-            gameplay.transform.Find("Flight caption").GetComponent<Text>().text = "EXPLORE BOTH PLANETS. COLLECT EVERY STAR.";
+            victoryPanel.transform.Find("Dialog/Description").GetComponent<Text>().text = "You explored the planets and found every star.";
+            gameplay.transform.Find("Flight caption").GetComponent<Text>().text = "EXPLORE THE PLANETS. COLLECT EVERY STAR.";
         }
 
         private void BuildCoachingUI()
