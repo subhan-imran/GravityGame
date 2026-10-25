@@ -2,7 +2,9 @@
 
 ## Character assets
 
-The playable scenes now use a small low-poly astronaut in place of the capsule visual. The shared assets include white/orange Explorer and blue/cyan Scout suits, a separate helmet and an oxygen backpack, under `Assets/Art/Characters`. Each suit is 2,100 triangles. The original movement collider remains on Player; the art is a separate child prefab. See [CHARACTER_ASSETS.md](CHARACTER_ASSETS.md) for the preview, asset paths and suit swapping. This visual update has not been packaged into the older APK linked below.
+The player is now a stranded superhero who has lost his ability to fly and must jump between planets to find a way home. The masked hero has a blue cape that gradually blends toward red as actual oxygen depletes, returning to blue when oxygen refills. The tutorial and star-victory message frame exploration as charting the route home. See [SUPERHERO.md](SUPERHERO.md) for the model, cape behavior and asset paths. The hero is applied to all four playable scenes; the root movement collider and three-jump rules remain.
+
+The earlier astronaut variants, helmet and oxygen backpack remain available under `Assets/Art/Characters`; see [CHARACTER_ASSETS.md](CHARACTER_ASSETS.md). The hero/cape update has not been packaged into the older APK linked below.
 
 ## Oxygen survival
 
@@ -40,7 +42,7 @@ The updated Android test APK is `C:/Users/Artemis/OneDrive/Apps/game.apk` (Andro
 - **Look:** drag the free right-side area. Assistance follows forward movement and frames a planet ahead during flight, without changing gravity or takeoff momentum. A manual drag temporarily overrides assistance.
 - **Pause / Resume:** large touch buttons freeze motion and oxygen use. Focus loss or app interruption pauses and requires an explicit resume. Held touches are cleared to prevent stuck movement or camera motion.
 - **Out of oxygen / Try again:** staying outside all gravity fields until the tank empties causes defeat. The retry button returns to the last safe landing with full oxygen and keeps collected stars; there is no automatic rescue.
-- **Stars / Victory / Play again:** explore either planet and collect all **three gold stars** in any order: two on Azure, one on Ember. The counter tracks progress. There is no landing zone or automatic win for reaching Ember. Only the final pickup opens **All stars collected!**. **Play Again** restores all stars and starts on Azure; R also starts a fresh run after victory. Progress survives checkpoint retries within the current session, but is not saved after closing the game. Desktop free-play scenes have no star objective.
+- **Stars / Victory / Play again:** explore either planet and collect all **three gold stars** in any order: two on Azure, one on Ember. The counter tracks progress. There is no landing zone or automatic win for reaching Ember. Only the final pickup opens **Route home found!**. **Play Again** restores all stars and starts on Azure; R also starts a fresh run after victory. Progress survives checkpoint retries within the current session, but is not saved after closing the game. Desktop free-play scenes have no star objective.
 
 
 Keyboard WASD/arrows, Shift and Space remain for development. Escape toggles pause; the mouse can drag the joystick and look area. R retries while playing or defeated; paused retries use the menu. The mobile scene keeps the pointer unlocked. Desktop scenes retain their original mouse control.

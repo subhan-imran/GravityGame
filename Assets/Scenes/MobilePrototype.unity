@@ -279,7 +279,9 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: You explored the planets and found every star.
+  m_Text: 'You found every star and charted a route.
+
+    Your journey home continues.'
 --- !u!222 &14422289
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -882,7 +884,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: EXPLORE THE PLANETS. COLLECT EVERY STAR.
+  m_Text: COLLECT STARS TO FIND YOUR WAY HOME.
 --- !u!222 &191594398
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -3726,6 +3728,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1661520051}
+  - {fileID: 1876605497}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &781418661
@@ -5828,10 +5831,10 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 'Your tank emptied before reaching gravity.
+  m_Text: 'Your oxygen ran out before reaching gravity.
 
-    Retry from your last safe
-    landing.'
+    Retry from your last
+    safe landing.'
 --- !u!222 &1051272785
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -9399,6 +9402,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Astronaut Visual
       objectReference: {fileID: 0}
+    - target: {fileID: 743634694573571102, guid: e59e122af446715499348c4c6facf2b4, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 3428456923961995229, guid: e59e122af446715499348c4c6facf2b4, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -10616,6 +10623,68 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: AZURE  /  GRAVITY ACTIVE
+--- !u!1001 &1876605496
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 781418660}
+    m_Modifications:
+    - target: {fileID: 2504648662082452438, guid: d89586a365140df4f86241ba4e6eb3ae, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2504648662082452438, guid: d89586a365140df4f86241ba4e6eb3ae, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2504648662082452438, guid: d89586a365140df4f86241ba4e6eb3ae, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2504648662082452438, guid: d89586a365140df4f86241ba4e6eb3ae, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2504648662082452438, guid: d89586a365140df4f86241ba4e6eb3ae, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2504648662082452438, guid: d89586a365140df4f86241ba4e6eb3ae, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2504648662082452438, guid: d89586a365140df4f86241ba4e6eb3ae, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2504648662082452438, guid: d89586a365140df4f86241ba4e6eb3ae, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2504648662082452438, guid: d89586a365140df4f86241ba4e6eb3ae, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2504648662082452438, guid: d89586a365140df4f86241ba4e6eb3ae, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2872887250130840530, guid: d89586a365140df4f86241ba4e6eb3ae, type: 3}
+      propertyPath: m_Name
+      value: Hero Visual
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: d89586a365140df4f86241ba4e6eb3ae, type: 3}
+--- !u!4 &1876605497 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 2504648662082452438, guid: d89586a365140df4f86241ba4e6eb3ae, type: 3}
+  m_PrefabInstance: {fileID: 1876605496}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1881878999
 GameObject:
   m_ObjectHideFlags: 0
@@ -11394,7 +11463,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: All stars collected!
+  m_Text: Route home found!
 --- !u!222 &2054243717
 CanvasRenderer:
   m_ObjectHideFlags: 0

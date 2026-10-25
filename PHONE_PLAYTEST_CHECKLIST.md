@@ -26,9 +26,13 @@ The oxygen update replaces the survival countdown with a bar and percentage. It 
 
 ## Feedback and the full game loop
 
+- [ ] The player is the masked superhero. The tutorial explains that his flight is lost and he is finding a way home.
+- [ ] The cape is blue with full oxygen, blends through purple during depletion, and becomes red when oxygen is empty. Check it on the underside of a planet too.
+- [ ] Refilling oxygen or retrying restores the blue cape. Pausing holds its current color.
+
 - [ ] Jump stages have distinct, comfortable sounds. Each actual landing produces one pulse, with no repeated sound while standing still.
 - [ ] Collect stars in different orders and on opposite sides of each planet. Each disappears once, creates sparkles and increments the counter once.
-- [ ] Landing on another planet does not win. Only collecting the last star opens victory and blocks movement underneath the screen.
+- [ ] Landing on another planet does not win. Only collecting the last star opens Route home found! and blocks movement underneath the screen.
 - [ ] Oxygen stays at 100% while exploring inside gravity. Jumps 1 and 2 do not drain the tank.
 - [ ] After jump 3 leaves every gravity field, the oxygen bar shrinks and the percentage falls. No survival timer is displayed.
 - [ ] A nearly empty tank shows amber/red fill and an OXYGEN LOW label. The bar stays readable and does not block touch controls.

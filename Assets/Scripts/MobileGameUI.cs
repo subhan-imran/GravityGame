@@ -185,7 +185,7 @@ namespace GravityGame
             jumpImage = jumpButton.image;
             jumpLabel = jumpButton.GetComponentInChildren<Text>();
             jumpControl = Touch(jumpImage, MobileControlKind.Jump);
-            var caption = Label("Flight caption", gameplay.transform, "EXPLORE THE PLANETS. COLLECT EVERY STAR.", 20, TextAnchor.MiddleCenter, Vector2.zero, new Vector2(560f, 48f));
+            var caption = Label("Flight caption", gameplay.transform, "COLLECT STARS TO FIND YOUR WAY HOME.", 20, TextAnchor.MiddleCenter, Vector2.zero, new Vector2(560f, 48f));
             Place(caption.rectTransform, new Vector2(0.5f, 0f), Vector2.one * 0.5f, new Vector2(0f, 32f), new Vector2(560f, 48f));
 
             pausePanel = Modal("Pause overlay", "Paused", "Your jump can wait.\nResume when you're ready.", true);
@@ -225,13 +225,13 @@ namespace GravityGame
             }
             lossPanel.transform.Find("Dialog/Heading").GetComponent<Text>().text = "Out of oxygen";
             lossPanel.transform.Find("Dialog/Description").GetComponent<Text>().text =
-                "Your tank emptied before reaching gravity.\nRetry from your last safe landing.";
+                "Your oxygen ran out before reaching gravity.\nRetry from your last safe landing.";
         }
 
         private void BuildVictoryUI()
         {
             if (victoryPanel != null) return;
-            victoryPanel = Modal("Victory overlay", "All stars collected!", "You explored the planets and found every star.", false, true);
+            victoryPanel = Modal("Victory overlay", "Route home found!", "You found every star and charted a route.\nYour journey home continues.", false, true);
             victoryPanel.SetActive(false);
         }
 
@@ -247,9 +247,9 @@ namespace GravityGame
                 starCounter.color = Gold;
             }
             // Also upgrade existing authored UI without rebuilding its controls.
-            victoryPanel.transform.Find("Dialog/Heading").GetComponent<Text>().text = "All stars collected!";
-            victoryPanel.transform.Find("Dialog/Description").GetComponent<Text>().text = "You explored the planets and found every star.";
-            gameplay.transform.Find("Flight caption").GetComponent<Text>().text = "EXPLORE THE PLANETS. COLLECT EVERY STAR.";
+            victoryPanel.transform.Find("Dialog/Heading").GetComponent<Text>().text = "Route home found!";
+            victoryPanel.transform.Find("Dialog/Description").GetComponent<Text>().text = "You found every star and charted a route.\nYour journey home continues.";
+            gameplay.transform.Find("Flight caption").GetComponent<Text>().text = "COLLECT STARS TO FIND YOUR WAY HOME.";
         }
 
         private void BuildCoachingUI()

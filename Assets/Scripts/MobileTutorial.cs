@@ -110,8 +110,8 @@ namespace GravityGame
             switch (Step)
             {
                 case TutorialStep.Move:
-                    heading.text = "1 / 5  MOVE";
-                    instructions.text = "Use the left stick to move.\nPush farther to run.";
+                    heading.text = "1 / 5  STRANDED";
+                    instructions.text = "Your flight is gone. Find a way home.\nUse the left stick. Push farther to run.";
                     break;
                 case TutorialStep.FirstJump:
                     heading.text = "2 / 5  JUMP 1";
@@ -131,11 +131,11 @@ namespace GravityGame
                     break;
                 case TutorialStep.Travel:
                     heading.text = "5 / 5  TRAVEL";
-                    instructions.text = "Reach another planet's gravity.\nMiss it? Retry your jump.";
+                    instructions.text = "Reach gravity to refill oxygen.\nBlue cape: safe. Red cape: empty.";
                     break;
                 case TutorialStep.Explore:
                     heading.text = "READY TO EXPLORE";
-                    instructions.text = "Land anywhere. Find every star.\nRetry keeps collected stars.";
+                    instructions.text = "Collect stars to chart your way home.\nLand anywhere. Retry keeps your stars.";
                     break;
             }
         }

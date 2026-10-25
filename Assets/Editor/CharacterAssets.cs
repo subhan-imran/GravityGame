@@ -43,6 +43,8 @@ namespace GravityGame.Editor
         public static void ApplyTo(SphericalPlayer player)
         {
             if (player == null) throw new Exception("No player found for the astronaut visual.");
+            var hero = player.transform.Find("Hero Visual");
+            if (hero != null) hero.gameObject.SetActive(false);
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(ExplorerPath);
             if (prefab == null) { CreateAssets(); prefab = AssetDatabase.LoadAssetAtPath<GameObject>(ExplorerPath); }
             if (player.transform.Find("Astronaut Visual") == null)
@@ -56,6 +58,7 @@ namespace GravityGame.Editor
             // Preserve the root's mesh/collider identity and every movement reference.
             var oldRenderer = player.GetComponent<MeshRenderer>();
             if (oldRenderer != null) oldRenderer.enabled = false;
+            player.transform.Find("Astronaut Visual").gameObject.SetActive(true);
             Require(player.transform.Find("Astronaut Visual").GetComponentsInChildren<Collider>(true).Length == 0,
                 "Visual parts must not add gameplay collisions");
         }
@@ -210,7 +213,7 @@ namespace GravityGame.Editor
             return builder.Mesh();
         }
 
-        private static Mesh Patch(float radius, float bottom, float top, float left, float right, int columns, int rows)
+        internal static Mesh Patch(float radius, float bottom, float top, float left, float right, int columns, int rows)
         {
             var builder = new MeshBuilder();
             Vector3 Point(int x, int y)
@@ -237,7 +240,7 @@ namespace GravityGame.Editor
             return builder.Mesh();
         }
 
-        private sealed class MeshBuilder
+        internal sealed class MeshBuilder
         {
             private readonly List<Vector3> vertices = new List<Vector3>();
             private readonly List<int> triangles = new List<int>();
