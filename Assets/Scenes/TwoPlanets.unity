@@ -2450,6 +2450,9 @@ MonoBehaviour:
   smoothTime: 0.12
   sensitivity: 0.12
   rollSpeed: 240
+  assisted: 0
+  defaultPitch: 20
+  assistTurnSpeed: 55
 --- !u!81 &660847492
 AudioListener:
   m_ObjectHideFlags: 0
@@ -3512,6 +3515,68 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &1046229496
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 1919425083}
+    m_Modifications:
+    - target: {fileID: 743634694573571102, guid: e59e122af446715499348c4c6facf2b4, type: 3}
+      propertyPath: m_Name
+      value: Astronaut Visual
+      objectReference: {fileID: 0}
+    - target: {fileID: 3428456923961995229, guid: e59e122af446715499348c4c6facf2b4, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3428456923961995229, guid: e59e122af446715499348c4c6facf2b4, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3428456923961995229, guid: e59e122af446715499348c4c6facf2b4, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3428456923961995229, guid: e59e122af446715499348c4c6facf2b4, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3428456923961995229, guid: e59e122af446715499348c4c6facf2b4, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3428456923961995229, guid: e59e122af446715499348c4c6facf2b4, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3428456923961995229, guid: e59e122af446715499348c4c6facf2b4, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3428456923961995229, guid: e59e122af446715499348c4c6facf2b4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3428456923961995229, guid: e59e122af446715499348c4c6facf2b4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3428456923961995229, guid: e59e122af446715499348c4c6facf2b4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: e59e122af446715499348c4c6facf2b4, type: 3}
+--- !u!4 &1046229497 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 3428456923961995229, guid: e59e122af446715499348c4c6facf2b4, type: 3}
+  m_PrefabInstance: {fileID: 1046229496}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1113456230
 GameObject:
   m_ObjectHideFlags: 0
@@ -6910,7 +6975,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 21.1, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 1046229497}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1919425084
@@ -6934,13 +7000,16 @@ MonoBehaviour:
   runSpeed: 14
   acceleration: 35
   jumpHeight: 2
-  runningJumpHeight: 8
+  secondJumpHeight: 3.2
+  thirdJumpHeight: 8
+  consecutiveJumpWindow: 1.2
   airControl: 0.3
   gravityTurnSpeed: 360
   switchHysteresis: 3
-  lostInSpaceDelay: 3
-  lossDistance: 120
+  oxygenCapacity: 3
   showTravelHelp: 1
+  useMobileUI: 0
+  stars: {fileID: 0}
 --- !u!54 &1919425085
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -6975,7 +7044,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1919425082}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1

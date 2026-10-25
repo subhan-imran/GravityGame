@@ -1,5 +1,9 @@
 # GravityGame — Mobile Prototype
 
+## Character assets
+
+The playable scenes now use a small low-poly astronaut in place of the capsule visual. The shared assets include white/orange Explorer and blue/cyan Scout suits, a separate helmet and an oxygen backpack, under `Assets/Art/Characters`. Each suit is 2,100 triangles. The original movement collider remains on Player; the art is a separate child prefab. See [CHARACTER_ASSETS.md](CHARACTER_ASSETS.md) for the preview, asset paths and suit swapping. This visual update has not been packaged into the older APK linked below.
+
 ## Oxygen survival
 
 The HUD now shows an oxygen bar and percentage instead of seconds remaining in space. It stays full inside any planet's gravity, drains only outside every field, and refills immediately when a field captures the player. The fill changes from cyan to amber/red at low supply, with an explicit **OXYGEN LOW** label. An empty tank opens **Out of oxygen**; it never returns the player automatically. Pause and app-interruption pause freeze oxygen use. Retry refills the tank and keeps collected stars; Play Again refills it and resets the star objective.

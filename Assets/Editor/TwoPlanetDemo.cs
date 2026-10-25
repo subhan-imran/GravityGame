@@ -30,6 +30,7 @@ namespace GravityGame.Editor
             playerObject.GetComponent<Renderer>().sharedMaterial = Material("Player", new Color(0.95f, 0.85f, 0.25f));
             playerObject.AddComponent<Rigidbody>();
             var player = playerObject.AddComponent<SphericalPlayer>();
+            CharacterAssets.ApplyTo(player);
             player.planet = home;
             player.gravitySources = new[] { home, moon };
             player.showTravelHelp = true;

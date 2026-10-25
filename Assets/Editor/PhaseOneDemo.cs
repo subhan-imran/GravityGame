@@ -71,6 +71,7 @@ namespace GravityGame.Editor
             player.transform.position = Vector3.up * 21.05f;
             player.AddComponent<Rigidbody>();
             var controller = player.AddComponent<SphericalPlayer>();
+            CharacterAssets.ApplyTo(controller);
             controller.planet = planet;
 
             var cameraObject = new GameObject("Main Camera", typeof(Camera), typeof(AudioListener));
