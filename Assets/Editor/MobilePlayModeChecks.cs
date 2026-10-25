@@ -20,13 +20,16 @@ namespace GravityGame.Editor
 
         public static void RunFirstExpedition() => StartChecks(true);
 
-        private static void StartChecks(bool expedition)
+        public static void RunOxygen() => StartChecks(true, true);
+
+        private static void StartChecks(bool expedition, bool preserveAuthored = false)
         {
             try
             {
                 TwoPlanetDemo.ValidateAll();
                 MobileDemo.ConfigureLandscape();
-                if (expedition) FirstExpedition.CreateLevel();
+                if (preserveAuthored) MobileDemo.UpgradeOxygenScenes();
+                else if (expedition) FirstExpedition.CreateLevel();
                 else MobileDemo.UpgradeStarScene();
                 SessionState.SetString(SceneKey, expedition ? FirstExpedition.ScenePath : "Assets/Scenes/MobilePrototype.unity");
                 SessionState.SetBool(ActiveKey, true);

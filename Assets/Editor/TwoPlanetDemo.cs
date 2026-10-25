@@ -232,9 +232,9 @@ namespace GravityGame.Editor
                 body.linearVelocity = Vector3.zero;
                 Physics.SyncTransforms();
                 Vector3 missedJumpPosition = body.position;
-                Step(Mathf.CeilToInt(player.lostInSpaceDelay / Time.fixedDeltaTime) - 2);
-                Require(!player.HasLost && player.SpaceTimeRemaining > 0f && player.SpaceTimeRemaining < 0.1f,
-                    "Grace countdown before losing");
+                Step(Mathf.CeilToInt(player.oxygenCapacity / Time.fixedDeltaTime) - 2);
+                Require(!player.HasLost && player.OxygenRemaining > 0f && player.OxygenRemaining < 0.1f,
+                    "Oxygen supply before losing");
                 Step(5);
                 Require(player.HasLost && body.isKinematic && player.RespawnCount == count &&
                     Vector3.Distance(body.position, missedJumpPosition) < 0.01f, "Timeout loses without automatic respawn");
@@ -251,7 +251,9 @@ namespace GravityGame.Editor
                 body.linearVelocity = Vector3.one * 100f;
                 Physics.SyncTransforms();
                 Step(1);
-                Require(player.HasLost && player.RespawnCount == count + 1, "Far-distance loss without automatic respawn");
+                Require(!player.HasLost && player.OxygenRemaining > 0f, "Distance does not bypass available oxygen");
+                Step(Mathf.CeilToInt(player.oxygenCapacity / Time.fixedDeltaTime) + 2);
+                Require(player.HasLost && player.RespawnCount == count + 1, "Oxygen depletion without automatic respawn");
                 player.Respawn(); // The Retry button uses this same explicit recovery path.
                 Require(!player.HasLost && player.RespawnCount == count + 2, "Explicit retry clears defeat");
                 body.position = Vector3.one * 250f;
@@ -259,7 +261,7 @@ namespace GravityGame.Editor
                 player.Respawn();
                 cameraStep.Invoke(camera, null);
                 Require(camera.planet == moon && Vector3.Distance(camera.transform.position, body.position) < 15f, "Immediate camera respawn reset");
-                Debug.Log("TWO_PLANET_VALIDATION_PASSED: running movement, three-jump chain, ballistic landing, grace countdown, persistent timeout/distance loss, disabled defeat controls, explicit keyboard/button retry, camera clearance/reset.");
+                Debug.Log("TWO_PLANET_VALIDATION_PASSED: running movement, three-jump chain, ballistic landing, oxygen survival and depletion, no distance-based death, disabled defeat controls, explicit keyboard/button retry, camera clearance/reset.");
             }
             finally
             {

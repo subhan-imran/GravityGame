@@ -55,6 +55,20 @@ namespace GravityGame.Editor
             Debug.Log("STAR_SCENE_UPGRADED");
         }
 
+        // Keep authored scene object identities and layouts when adding the oxygen HUD.
+        public static void UpgradeOxygenScenes()
+        {
+            foreach (string path in new[] { "Assets/Scenes/MobilePrototype.unity", FirstExpedition.ScenePath })
+            {
+                var scene = EditorSceneManager.OpenScene(path);
+                Object.FindAnyObjectByType<MobileGameUI>().BuildUI();
+                EditorSceneManager.MarkSceneDirty(scene);
+                EditorSceneManager.SaveScene(scene);
+            }
+            AssetDatabase.SaveAssets();
+            Debug.Log("OXYGEN_SCENES_UPGRADED: authored mobile and expedition scenes preserved.");
+        }
+
         // Invoke on a temporary project copy with Unity's -buildTarget Android argument.
         public static void BuildAndroid()
         {
@@ -182,12 +196,12 @@ namespace GravityGame.Editor
                     "Touch drag adjusts the camera heading before its smoothed position follows");
 
                 Vector3 pausedPosition = body.position;
-                float remaining = player.SpaceTimeRemaining;
+                float remaining = player.OxygenRemaining;
                 Click(ui.PauseButton.gameObject);
                 Require(player.IsPaused && ui.PauseVisible && Time.timeScale == 0f && !ui.LookArea.HasPointer, "Pause screen releases held touches");
                 ui.PauseGame(); // Repeated pause must not overwrite the clock to restore with zero.
                 Step(20);
-                Require(body.position == pausedPosition && Mathf.Approximately(remaining, player.SpaceTimeRemaining), "Pause freezes motion and loss countdown");
+                Require(body.position == pausedPosition && Mathf.Approximately(remaining, player.OxygenRemaining), "Pause freezes motion and oxygen use");
                 Click(ui.ResumeButton.gameObject);
                 Require(!player.IsPaused && !ui.PauseVisible && Time.timeScale == 1f && player.MovementInput == Vector2.zero, "Resume restores clock without stuck input");
 
@@ -207,7 +221,7 @@ namespace GravityGame.Editor
                 int retries = player.RespawnCount;
                 body.position = Vector3.one * 500f;
                 Physics.SyncTransforms();
-                Step(1);
+                Step(Mathf.CeilToInt(player.oxygenCapacity / Time.fixedDeltaTime) + 2);
                 Require(player.HasLost && ui.LossVisible && !ui.Joystick.gameObject.activeInHierarchy, "Touch-friendly defeat screen blocks gameplay controls");
                 Click(ui.RetryButton.gameObject);
                 Require(!player.HasLost && !player.IsPaused && !ui.LossVisible && player.RespawnCount == retries + 1 && Time.timeScale == 1f,
@@ -216,6 +230,7 @@ namespace GravityGame.Editor
                 Require(!player.HasWon && !ui.VictoryVisible, "Starting-planet landings do not complete the level");
                 JumpChainChecks.Validate(player, ui, Step);
                 TutorialFeedbackChecks.Validate(player, ui, Step);
+                OxygenChecks.Validate(player, ui, Step);
                 if (player.gravitySources.Length == 3) FirstExpeditionChecks.Validate(player, ui, Step);
                 PlanetGravity home = player.planet;
                 PlanetGravity goal = player.gravitySources[1];
@@ -237,7 +252,7 @@ namespace GravityGame.Editor
                 ui.ResumeGame();
                 body.position = Vector3.one * 500f;
                 Physics.SyncTransforms();
-                Step(1);
+                Step(Mathf.CeilToInt(player.oxygenCapacity / Time.fixedDeltaTime) + 2);
                 Require(player.HasLost && !objective.TryCollect(stars[0], player), "Defeat prevents collection");
                 Click(ui.RetryButton.gameObject);
                 Require(objective.CollectedCount == 1 && stars[1].Collected, "Retry retains collected stars");
@@ -385,7 +400,12 @@ namespace GravityGame.Editor
                 Capture("mobile-pause.png");
                 ui.ResumeGame();
                 ui.player.GetComponent<Rigidbody>().position = Vector3.one * 500f;
-                typeof(SphericalPlayer).GetMethod("FixedUpdate", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(ui.player, null);
+                int lowOxygenSteps = Mathf.CeilToInt(ui.player.oxygenCapacity * 0.8f / Time.fixedDeltaTime);
+                for (int i = 0; i < lowOxygenSteps; i++)
+                    typeof(SphericalPlayer).GetMethod("FixedUpdate", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(ui.player, null);
+                Capture("mobile-oxygen-low.png");
+                for (int i = 0; i < Mathf.CeilToInt(ui.player.oxygenCapacity / Time.fixedDeltaTime) + 2; i++)
+                    typeof(SphericalPlayer).GetMethod("FixedUpdate", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(ui.player, null);
                 ui.Refresh();
                 Capture("mobile-loss.png");
                 ui.PlayAgain();

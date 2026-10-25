@@ -20,8 +20,7 @@ namespace GravityGame
         [Range(0f, 1f)] public float airControl = 0.3f;
         [Min(1f)] public float gravityTurnSpeed = 360f;
         [Min(0.1f)] public float switchHysteresis = 3f;
-        [Min(0.1f)] public float lostInSpaceDelay = 3f;
-        [FormerlySerializedAs("respawnDistance"), Min(1f)] public float lossDistance = 120f;
+        [FormerlySerializedAs("lostInSpaceDelay"), Min(0.1f)] public float oxygenCapacity = 3f;
         public bool showTravelHelp;
         public bool useMobileUI;
         public StarCollection stars;
@@ -33,7 +32,8 @@ namespace GravityGame
         public bool IsPaused { get; private set; }
         public Vector2 MovementInput => input;
         public Vector3 Velocity => body != null ? body.linearVelocity : Vector3.zero;
-        public float SpaceTimeRemaining => Mathf.Max(0f, lostInSpaceDelay - outsideTime);
+        public float OxygenRemaining => Mathf.Max(0f, Mathf.Max(0.1f, oxygenCapacity) - oxygenUsed);
+        public float OxygenFraction => Mathf.Clamp01(OxygenRemaining / Mathf.Max(0.1f, oxygenCapacity));
         public bool IsInGravityField { get; private set; }
         public bool IsRunning => runRequested && input.sqrMagnitude > 0.01f;
         public int JumpChain { get; private set; }
@@ -57,7 +57,7 @@ namespace GravityGame
         private bool runRequested;
         private Vector2 touchMovement;
         private bool touchRunning;
-        private float outsideTime;
+        private float oxygenUsed;
         private PlanetGravity checkpointPlanet;
         private Vector3 checkpointLocalPosition;
         private Quaternion checkpointLocalRotation;
@@ -156,15 +156,14 @@ namespace GravityGame
             PlanetGravity closest = lowerJumpPlanet != null ? lowerJumpPlanet : ClosestPlanet(body.position, true);
             if (closest == null)
             {
-                outsideTime += dt;
-                PlanetGravity nearest = ClosestPlanet(body.position, false);
-                if (outsideTime >= lostInSpaceDelay || (nearest != null && nearest.SurfaceDistance(body.position) > lossDistance))
+                oxygenUsed = Mathf.Min(Mathf.Max(0.1f, oxygenCapacity), oxygenUsed + dt);
+                if (OxygenRemaining <= 0f)
                 {
                     LoseInSpace();
                     return;
                 }
             }
-            else outsideTime = 0f;
+            else oxygenUsed = 0f;
 
             if (closest != null && (!IsGrounded || planet == null || !planet.Contains(body.position)) &&
                 (planet == null || !planet.Contains(body.position) || closest.SurfaceDistance(body.position) + switchHysteresis < planet.SurfaceDistance(body.position)))
@@ -356,7 +355,7 @@ namespace GravityGame
             Physics.SyncTransforms();
             input = Vector2.zero;
             runRequested = false;
-            jumpBuffer = outsideTime = 0f;
+            jumpBuffer = oxygenUsed = 0f;
             groundingLock = 0.15f;
             IsGrounded = false;
             IsInGravityField = planet.Contains(body.position);
@@ -401,14 +400,25 @@ namespace GravityGame
                 var panel = new Rect((Screen.width - 440f) * 0.5f, (Screen.height - 180f) * 0.5f, 440f, 180f);
                 GUI.Box(panel, "");
                 var titleStyle = new GUIStyle(GUI.skin.label) { fontSize = 28, alignment = TextAnchor.MiddleCenter };
-                GUI.Label(new Rect(panel.x, panel.y + 16f, panel.width, 42f), "Lost in space", titleStyle);
+                GUI.Label(new Rect(panel.x, panel.y + 16f, panel.width, 42f), "Out of oxygen", titleStyle);
                 var messageStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter };
-                GUI.Label(new Rect(panel.x, panel.y + 62f, panel.width, 32f), "You didn't reach another planet. Try a different jump.", messageStyle);
+                GUI.Label(new Rect(panel.x, panel.y + 62f, panel.width, 32f), "Reach another planet's gravity before your tank empties.", messageStyle);
                 if (GUI.Button(new Rect(panel.x + 70f, panel.y + 112f, 300f, 42f), "Retry from last landing (R)")) Respawn();
                 return;
             }
+            float barY = showTravelHelp ? 164f : 16f;
+            GUI.Box(new Rect(16f, barY, 320f, 62f), "");
+            GUI.Label(new Rect(28f, barY + 4f, 296f, 24f),
+                (IsInGravityField ? "OXYGEN FULL" : OxygenFraction <= 0.3f ? "LOW OXYGEN" : "OXYGEN") +
+                "  " + Mathf.CeilToInt(OxygenFraction * 100f) + "%");
+            Color previousColor = GUI.color;
+            GUI.color = new Color(0.1f, 0.17f, 0.23f);
+            GUI.DrawTexture(new Rect(28f, barY + 34f, 296f, 16f), Texture2D.whiteTexture);
+            GUI.color = OxygenFraction <= 0.3f ? new Color(1f, 0.45f, 0.25f) : new Color(0.36f, 0.85f, 0.95f);
+            GUI.DrawTexture(new Rect(28f, barY + 34f, 296f * OxygenFraction, 16f), Texture2D.whiteTexture);
+            GUI.color = previousColor;
             if (!showTravelHelp) return;
-            string name = IsInGravityField && planet != null ? planet.name + " gravity" : "Space - " + SpaceTimeRemaining.ToString("0.0") + "s to reach gravity";
+            string name = IsInGravityField && planet != null ? planet.name + " gravity" : "Space - use your oxygen to reach gravity";
             string jumpStatus = IsGrounded ? (EscapeJumpReady ? "Third jump ready - press Space" : "Jump " + NextJump + "/3 - jump again soon after landing") : "Airborne - carry your momentum";
             GUI.Box(new Rect(16, 16, 600, 132), "TWO PLANET DEMO  |  " + name +
                 "\nWASD / arrows: move   Hold Shift: run   Space: jump   Mouse: orbit" +

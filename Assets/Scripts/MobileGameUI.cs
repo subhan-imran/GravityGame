@@ -25,6 +25,9 @@ namespace GravityGame
         [SerializeField] private Button lossRetryButton;
         [SerializeField] private Button playAgainButton;
         [SerializeField] private Text starCounter;
+        [SerializeField] private Image oxygenFill;
+        [SerializeField] private Text oxygenLabel;
+        [SerializeField] private Text oxygenPercent;
         [SerializeField] private Text status;
         [SerializeField] private Text hint;
         [SerializeField] private Text jumpLabel;
@@ -65,6 +68,9 @@ namespace GravityGame
         public bool PauseVisible => pausePanel != null && pausePanel.activeSelf;
         public bool LossVisible => lossPanel != null && lossPanel.activeSelf;
         public string StarCounterText => starCounter != null ? starCounter.text : "";
+        public Image OxygenFill => oxygenFill;
+        public string OxygenStatusText => oxygenLabel != null ? oxygenLabel.text : "";
+        public float OxygenBarFraction => oxygenFill != null ? oxygenFill.rectTransform.anchorMax.x : 0f;
         public bool VictoryVisible => victoryPanel != null && victoryPanel.activeSelf;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
@@ -134,6 +140,7 @@ namespace GravityGame
                 BuildVictoryUI();
                 BuildObjectiveUI();
                 BuildCoachingUI();
+                BuildOxygenUI();
                 return;
             }
             var canvasObject = new GameObject("Mobile Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -188,6 +195,7 @@ namespace GravityGame
             BuildVictoryUI();
             BuildObjectiveUI();
             BuildCoachingUI();
+            BuildOxygenUI();
             eventSystem = Object.FindAnyObjectByType<EventSystem>();
             if (eventSystem == null)
             {
@@ -195,6 +203,29 @@ namespace GravityGame
                 events.transform.SetParent(transform, false);
                 eventSystem = events.GetComponent<EventSystem>();
             }
+        }
+
+        private void BuildOxygenUI()
+        {
+            if (oxygenFill == null)
+            {
+                var card = Image("Oxygen card", gameplay.transform, Navy);
+                Place(card.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(28f, -156f), new Vector2(360f, 72f));
+                card.raycastTarget = false;
+                oxygenLabel = Label("Oxygen status", card.transform, "OXYGEN FULL", 22, TextAnchor.MiddleLeft,
+                    new Vector2(16f, -22f), new Vector2(230f, 28f));
+                oxygenPercent = Label("Oxygen percentage", card.transform, "100%", 22, TextAnchor.MiddleRight,
+                    new Vector2(246f, -22f), new Vector2(98f, 28f));
+                var track = Image("Oxygen track", card.transform, new Color(0.1f, 0.17f, 0.23f));
+                track.raycastTarget = false;
+                Place(track.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(16f, -46f), new Vector2(328f, 16f));
+                oxygenFill = Image("Oxygen fill", track.transform, new Color(0.36f, 0.85f, 0.95f));
+                oxygenFill.raycastTarget = false;
+                Stretch(oxygenFill.rectTransform);
+            }
+            lossPanel.transform.Find("Dialog/Heading").GetComponent<Text>().text = "Out of oxygen";
+            lossPanel.transform.Find("Dialog/Description").GetComponent<Text>().text =
+                "Your tank emptied before reaching gravity.\nRetry from your last safe landing.";
         }
 
         private void BuildVictoryUI()
@@ -404,7 +435,14 @@ namespace GravityGame
             victoryPanel.SetActive(player.HasWon);
             status.text = player.IsInGravityField && player.planet != null
                 ? player.planet.name.ToUpperInvariant() + "  /  GRAVITY ACTIVE"
-                : "SPACE  /  " + player.SpaceTimeRemaining.ToString("0.0") + "s TO FIND GRAVITY";
+                : "SPACE  /  NO GRAVITY";
+            float oxygen = player.OxygenFraction;
+            oxygenFill.rectTransform.anchorMax = new Vector2(oxygen, 1f);
+            oxygenFill.color = oxygen <= 0.15f ? new Color(0.98f, 0.35f, 0.32f)
+                : oxygen <= 0.3f ? Gold : player.IsInGravityField ? new Color(0.3f, 0.9f, 0.65f) : new Color(0.36f, 0.85f, 0.95f);
+            oxygenLabel.text = oxygen <= 0f ? "OXYGEN EMPTY" : player.IsInGravityField ? "OXYGEN FULL"
+                : oxygen <= 0.3f ? "OXYGEN LOW" : "OXYGEN";
+            oxygenPercent.text = Mathf.CeilToInt(oxygen * 100f) + "%";
             if (player.stars != null)
             {
                 string progress = "STARS  " + player.stars.CollectedCount + " / " + player.stars.TotalCount;

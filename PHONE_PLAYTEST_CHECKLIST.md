@@ -4,6 +4,8 @@ Run this later when you have access to an Android phone. Mark each item Pass / F
 
 The October 22 tutorial APK has two planets and three stars. The new **First Expedition** scene has three planets (Azure, Ember, Verdant) and six stars, two per planet. Use the matching count when testing. Editor automation does not replace these phone checks.
 
+The oxygen update replaces the survival countdown with a bar and percentage. It is in the Unity scenes and requires a new APK build; earlier tutorial APKs still show the countdown.
+
 ## First launch and tutorial
 
 - [ ] Launch with the phone held upright and auto-rotate disabled. The game opens horizontally and controls fit inside the screen cutout/gesture area.
@@ -27,13 +29,17 @@ The October 22 tutorial APK has two planets and three stars. The new **First Exp
 - [ ] Jump stages have distinct, comfortable sounds. Each actual landing produces one pulse, with no repeated sound while standing still.
 - [ ] Collect stars in different orders and on opposite sides of each planet. Each disappears once, creates sparkles and increments the counter once.
 - [ ] Landing on another planet does not win. Only collecting the last star opens victory and blocks movement underneath the screen.
-- [ ] Miss all planets after jump 3. The countdown ends in Lost in Space without returning automatically.
-- [ ] Retry returns to the last safe landing, clears momentum and starts the jump chain at 1. Collected stars remain collected.
+- [ ] Oxygen stays at 100% while exploring inside gravity. Jumps 1 and 2 do not drain the tank.
+- [ ] After jump 3 leaves every gravity field, the oxygen bar shrinks and the percentage falls. No survival timer is displayed.
+- [ ] A nearly empty tank shows amber/red fill and an OXYGEN LOW label. The bar stays readable and does not block touch controls.
+- [ ] Enter another planet's gravity before depletion. Oxygen immediately refills to 100%.
+- [ ] Miss all planets after jump 3. An empty tank opens Out of oxygen without returning automatically.
+- [ ] Retry returns to the last safe landing with full oxygen, clears momentum and starts the jump chain at 1. Collected stars remain collected.
 - [ ] Play Again after victory returns to Azure and restores every star. Complete another attempt.
 
 ## Pause, interruptions and longer play
 
-- [ ] Pause during a jump, the landing window and the space countdown. Motion, timing and visual effects freeze; current sounds stop.
+- [ ] Pause during a jump, the landing window and oxygen drain. Motion, oxygen, timing and visual effects freeze; current sounds stop.
 - [ ] Resume without a stuck joystick or jump. Try Retry and Replay Tutorial from Pause.
 - [ ] Background the app or lock the phone while holding controls. Returning leaves it paused until Resume; controls release properly.
 - [ ] Try Android system Back from gameplay and each menu. Record any unexpected behavior; gesture Back still needs device verification.

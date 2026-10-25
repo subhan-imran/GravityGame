@@ -48,7 +48,7 @@ namespace GravityGame.Editor
             Require(!player.IsInGravityField, "Third jump can still leave gravity");
             body.position = Vector3.one * 500f;
             Physics.SyncTransforms();
-            step(1);
+            step(Mathf.CeilToInt(player.oxygenCapacity / Time.fixedDeltaTime) + 2);
             Require(player.HasLost, "Missed third jump still loses");
             ui.RetryFromCheckpoint();
             step(2);
