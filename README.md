@@ -1,16 +1,20 @@
 # GravityGame — Mobile Prototype
 
+## Latest Android build
+
+Built October 25, 2026 directly to `C:/Users/Artemis/OneDrive/Apps/game.apk` (61,719,646 bytes, about 62 MB). This development APK launches **First Expedition** with three planets, six stars, the stranded superhero, oxygen bar and blue-to-red cape. Unity exited 0 with `MOBILE_ANDROID_BUILD_PASSED` in `Logs/hero-android-build.log`. The package passed fixed-landscape, SDK 26-36, ARM64, signature and 16 KB ZIP/native-library alignment checks (`Logs/hero-android-apk-audit.json`). SHA-256: `FFFD7F8B7FB3AAA557ECB29D1A8D0A0FF9F64B63FF61D5EB26B02AB17BF5C546`. Only build and package checks were run for this packaging task; no full gameplay suite or phone test was repeated.
+
 ## Character assets
 
 The player is now a stranded superhero who has lost his ability to fly and must jump between planets to find a way home. The masked hero has a blue cape that gradually blends toward red as actual oxygen depletes, returning to blue when oxygen refills. The tutorial and star-victory message frame exploration as charting the route home. See [SUPERHERO.md](SUPERHERO.md) for the model, cape behavior and asset paths. The hero is applied to all four playable scenes; the root movement collider and three-jump rules remain.
 
-The earlier astronaut variants, helmet and oxygen backpack remain available under `Assets/Art/Characters`; see [CHARACTER_ASSETS.md](CHARACTER_ASSETS.md). The hero/cape update has not been packaged into the older APK linked below.
+The earlier astronaut variants, helmet and oxygen backpack remain available under `Assets/Art/Characters`; see [CHARACTER_ASSETS.md](CHARACTER_ASSETS.md). The current Android APK includes the hero and oxygen-reactive cape.
 
 ## Oxygen survival
 
 The HUD now shows an oxygen bar and percentage instead of seconds remaining in space. It stays full inside any planet's gravity, drains only outside every field, and refills immediately when a field captures the player. The fill changes from cyan to amber/red at low supply, with an explicit **OXYGEN LOW** label. An empty tank opens **Out of oxygen**; it never returns the player automatically. Pause and app-interruption pause freeze oxygen use. Retry refills the tank and keeps collected stars; Play Again refills it and resets the star objective.
 
-`SphericalPlayer.oxygenCapacity` is the tank capacity in seconds (default 3, preserving the previous travel balance). It replaces the serialized `lostInSpaceDelay` with migration support for existing scenes. Increasing the capacity supports longer flights; there is no separate timeout or distance-based death that overrides the tank. Desktop help also shows an oxygen bar. Both authored mobile scenes include the HUD; the existing APK described below predates this update.
+`SphericalPlayer.oxygenCapacity` is the tank capacity in seconds (default 3, preserving the previous travel balance). It replaces the serialized `lostInSpaceDelay` with migration support for existing scenes. Increasing the capacity supports longer flights; there is no separate timeout or distance-based death that overrides the tank. Desktop help also shows an oxygen bar. Both authored mobile scenes include the HUD; the current APK includes this update.
 
 Run `GravityGame.Editor.MobilePlayModeChecks.RunOxygen` in a graphics-enabled batch Unity process on a temporary project copy, without `-quit`. It upgrades the saved mobile scenes in place, then checks the authored First Expedition level. Oxygen checks cover drain, bar width, low warning, refill, pause, empty-tank defeat, retry/star persistence, replay and double-capacity survival past the old time and distance limits. Existing route, jump, tutorial, touch and victory checks also run.
 
@@ -24,7 +28,7 @@ The tutorial, feedback and mobile controls carry over. The existing `MobileProto
 
 Run the new level's rendered checks on a temporary copy with `-batchmode -buildTarget Android -projectPath <copy> -executeMethod GravityGame.Editor.MobilePlayModeChecks.RunFirstExpedition -logFile <log>` (without `-quit`; the check exits itself). This includes the existing gameplay checks, lower-jump containment on all three planets, six real bidirectional third-jump crossings and checkpoint retries, six-star victory/replay and saved-scene reloading.
 
-Verified October 22, 2026 with Unity 6000.5.9f1: exit 0 and all validation markers in `Logs/first-expedition-validation.log`. All six routes crossed space and landed without automatic travel or retry. The 72 lower-jump stress flights covered three planets, six poles, two timestep sizes and both lower stages, with held running, outward impulses and large configured jump heights. Rendered gameplay and victory previews were reviewed; the six-star counter and new planet are visible. The existing tutorial APK described below has not been rebuilt with this separate level.
+Verified October 22, 2026 with Unity 6000.5.9f1: exit 0 and all validation markers in `Logs/first-expedition-validation.log`. All six routes crossed space and landed without automatic travel or retry. The 72 lower-jump stress flights covered three planets, six poles, two timestep sizes and both lower stages, with held running, outward impulses and large configured jump heights. Rendered gameplay and victory previews were reviewed; the six-star counter and new planet are visible. The October 25 Android build launches this level.
 
 Use [PHONE_PLAYTEST_CHECKLIST.md](PHONE_PLAYTEST_CHECKLIST.md) for the deferred device test. It distinguishes the earlier tutorial APK from the new six-star level; editor checks cannot confirm phone feel, performance or lifecycle behavior.
 
@@ -32,7 +36,7 @@ Use [PHONE_PLAYTEST_CHECKLIST.md](PHONE_PLAYTEST_CHECKLIST.md) for the deferred 
 
 Open `Assets/Scenes/MobilePrototype.unity` and press Play. The separate mobile scene preserves TwoPlanets and PhaseOne. The game is locked to horizontal Landscape Left at launch, before the splash screen, during gameplay and when returning from the background. Automatic portrait rotation is disabled. Mobile runtime targets 60 FPS (device performance still needs measurement).
 
-The updated Android test APK is `C:/Users/Artemis/OneDrive/Apps/game.apk` (Android 8.0+, ARM64, about 62 MB), built directly to Unity's saved destination on October 22, 2026. The tutorial update adds guided practice, jump/landing/star feedback and strict gravity containment for jumps 1 and 2. The build and fixed-landscape, signature and 16 KB native/ZIP alignment checks passed. Earlier star-exploration APKs remain in `Builds/MobilePrototype`. Generated builds are ignored by Git. See `TUTORIAL_FEEDBACK_PR.md` for validation and the latest build result.
+The earlier October 22 tutorial build used this two-planet scene, with guided practice, jump/landing/star feedback and strict gravity containment for jumps 1 and 2. Its historical build receipt is in `TUTORIAL_FEEDBACK_PR.md`. The current OneDrive APK launches First Expedition, as described above. Earlier star-exploration APKs remain in `Builds/MobilePrototype`; generated builds are ignored by Git.
 
 - **Left joystick:** partial movement walks, pushing near the edge runs automatically. A dead zone prevents small accidental movement; a separate run button is unnecessary.
 - **Jump:** tap once, land, then tap again within **1.2 seconds** to continue the chain. Jumps 1 and 2 get higher; **jump 3** can escape gravity. The button displays the next stage and turns gold for **ESCAPE 3 / 3**. Running still works for faster movement but cannot skip the chain. Airborne taps do not advance it; holding the button does not repeat jumps. Pausing freezes the landing window; waiting too long, changing planets or retrying resets the chain. Aim your movement toward the next planet for the third jump; jumping straight into empty space can still lose.

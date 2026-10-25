@@ -2,9 +2,9 @@
 
 Run this later when you have access to an Android phone. Mark each item Pass / Fail / Not tested. Record the APK filename/date, phone model, Android version and any failed steps. A short screen recording helps with timing or camera problems.
 
-The October 22 tutorial APK has two planets and three stars. The new **First Expedition** scene has three planets (Azure, Ember, Verdant) and six stars, two per planet. Use the matching count when testing. Editor automation does not replace these phone checks.
+The latest October 25 APK (`OneDrive/Apps/game.apk`) launches **First Expedition**: three planets (Azure, Ember, Verdant), six stars, the superhero and the oxygen-reactive cape. The earlier October 22 tutorial APK had two planets and three stars. Use the matching count when testing. Editor automation does not replace these phone checks.
 
-The oxygen update replaces the survival countdown with a bar and percentage. It is in the Unity scenes and requires a new APK build; earlier tutorial APKs still show the countdown.
+The oxygen update replaces the survival countdown with a bar and percentage. It is included in the latest APK; earlier tutorial APKs still show the countdown.
 
 ## First launch and tutorial
 
