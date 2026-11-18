@@ -118,6 +118,7 @@ namespace GravityGame.Editor
                     Part(root, "Cape clasp", detail, trim, new Vector3(side * 0.22f, 0.20f, 0.15f), Vector3.one * 0.10f);
                 }
             });
+            HeroAnimationSetup.UpgradeAssets();
             AssetDatabase.SaveAssets();
             var heroAsset = AssetDatabase.LoadAssetAtPath<GameObject>(HeroPath);
             int triangles = 0;

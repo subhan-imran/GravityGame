@@ -6,6 +6,8 @@ namespace GravityGame
     {
         public SphericalPlayer player;
         public CollectibleStar[] stars = new CollectibleStar[0];
+        [Tooltip("Disable for worlds where the player can keep exploring after collecting every star.")]
+        public bool finishRunOnComplete = true;
         public event System.Action<CollectibleStar> StarCollected;
         public int CollectedCount { get; private set; }
         public int TotalCount => stars.Length;
@@ -20,7 +22,7 @@ namespace GravityGame
             star.SetCollected(true);
             CollectedCount++;
             StarCollected?.Invoke(star);
-            if (AllCollected) player.CompleteStarRun();
+            if (AllCollected && finishRunOnComplete) player.CompleteStarRun();
             return true;
         }
 
@@ -29,6 +31,18 @@ namespace GravityGame
         {
             CollectedCount = 0;
             foreach (var star in stars) if (star != null) star.SetCollected(false);
+        }
+
+        public void RestoreProgress(System.Collections.Generic.HashSet<string> collectedIds)
+        {
+            CollectedCount = 0;
+            foreach (var star in stars)
+            {
+                if (star == null) continue;
+                bool collected = !string.IsNullOrWhiteSpace(star.persistentId) && collectedIds.Contains(star.persistentId);
+                star.SetCollected(collected);
+                if (collected) CollectedCount++;
+            }
         }
     }
 }

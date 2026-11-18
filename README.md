@@ -1,5 +1,21 @@
 # GravityGame — Mobile Prototype
 
+## Haven Reach open world
+
+Open `Assets/Scenes/OpenWorld.unity` and press Play. Haven, Relay, and Farpoint are connected in one scene. Gold beacons mark the Haven–Relay and Relay–Farpoint crossings. Stand between the beacons facing the destination and chain three jumps to travel. Collect nine star fragments and keep exploring after finding them all.
+
+Walk up to a phone booth while grounded and tap **Phone Booth** or press **E**. The booth pauses play and offers inventory, master volume, and look sensitivity. Choose **Save** to keep your collected fragments, settings, and the booth where you want to resume. Opening the world again loads that save automatically. **Back to World** resumes without writing a save.
+
+Each booth uses `Assets/Prefabs/Gameplay/PhoneBooth.prefab`. Its menu uses `Assets/Prefabs/UI/BoothMenu.prefab` and can be edited in Prefab Mode. Keep each booth and fragment ID unique and stable within the world so existing saves can identify them. Haven Reach is first in the default build scene list.
+
+## Editing levels and UI
+
+Use the saved scenes and reusable assets in `Assets/Prefabs/Gameplay` and `Assets/Prefabs/UI` for normal development. The **Level Authoring** Inspector connects planets, pickups, the player rig, and the interface. The saved Canvas controls static UI layout and labels; `Assets/Settings/DefaultGameUI.asset` controls dynamic HUD and tutorial text/colors. No scene generator needs to run to apply Inspector edits. See [Editing levels and UI](Docs/Editing_Levels_and_UI.md) for prefab editing, planet/star placement, duplicating levels, and validation.
+
+Original scene generators are now under **GravityGame > Legacy Prototypes**. They remain for prototype reproduction and can replace authored content. The Android helper builds the enabled saved scenes without recreating a demo first.
+
+The prefab migration, Inspector-editing round trips, and saved First Expedition physics/UI-state regression passed in Unity 6000.6.7f1 on November 19, 2026. The separate rendered Play mode attempt did not complete during Unity background refresh; no new Android package or phone check is claimed. Validation details and entry points are in the editing guide.
+
 ## Latest Android build
 
 Built October 25, 2026 directly to `C:/Users/Artemis/OneDrive/Apps/game.apk` (61,719,646 bytes, about 62 MB). This development APK launches **First Expedition** with three planets, six stars, the stranded superhero, oxygen bar and blue-to-red cape. Unity exited 0 with `MOBILE_ANDROID_BUILD_PASSED` in `Logs/hero-android-build.log`. The package passed fixed-landscape, SDK 26-36, ARM64, signature and 16 KB ZIP/native-library alignment checks (`Logs/hero-android-apk-audit.json`). SHA-256: `FFFD7F8B7FB3AAA557ECB29D1A8D0A0FF9F64B63FF61D5EB26B02AB17BF5C546`. Only build and package checks were run for this packaging task; no full gameplay suite or phone test was repeated.

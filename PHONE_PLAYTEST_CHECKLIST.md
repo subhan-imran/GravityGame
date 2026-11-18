@@ -6,6 +6,8 @@ The latest October 25 APK (`OneDrive/Apps/game.apk`) launches **First Expedition
 
 The oxygen update replaces the survival countdown with a bar and percentage. It is included in the latest APK; earlier tutorial APKs still show the countdown.
 
+The walking/running and cape-motion project update comes after the October 25 APK. Test the animation items below once a new APK includes it.
+
 ## First launch and tutorial
 
 - [ ] Launch with the phone held upright and auto-rotate disabled. The game opens horizontally and controls fit inside the screen cutout/gesture area.
@@ -16,6 +18,9 @@ The oxygen update replaces the survival countdown with a bar and percentage. It 
 ## Movement, jumps and camera
 
 - [ ] Partial joystick movement walks; the outer edge runs automatically. Releasing it stops movement on the surface.
+- [ ] With the animation update: arms and legs swing while walking; running has a larger, faster stride. The hero turns toward travel, including sideways/backward joystick movement. Stopping settles the pose.
+- [ ] With the animation update: the cape gently ripples while idle and lifts more while running. Its shoulders stay attached, its oxygen colour still changes, and it does not flicker or hide the character.
+- [ ] With the animation update: limbs settle in the air; pause freezes limbs/cape; retry restores a neutral pose. Check movement on the underside of a planet too.
 - [ ] Hold full movement through jump 1 and jump 2 on every planet. Both return to that planet and cannot escape gravity or switch planets.
 - [ ] Tap again after landing within 1.2 seconds. Jumps become higher; the second landing shows a gold escape cue. Jump 3 can leave gravity.
 - [ ] Repeated taps in the air do not skip a stage. Holding Jump does not repeatedly jump. Waiting more than 1.2 seconds after landing resets to jump 1.

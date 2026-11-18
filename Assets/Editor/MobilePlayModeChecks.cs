@@ -22,6 +22,24 @@ namespace GravityGame.Editor
 
         public static void RunOxygen() => StartChecks(true, true);
 
+        // Validates the saved prefab-based level without recreating any scene.
+        public static void RunAuthored()
+        {
+            try
+            {
+                AuthoringChecks.Run();
+                EditorSceneManager.OpenScene(FirstExpedition.ScenePath);
+                SessionState.SetString(SceneKey, FirstExpedition.ScenePath);
+                SessionState.SetBool(ActiveKey, true);
+                EditorApplication.EnterPlaymode();
+            }
+            catch (System.Exception exception)
+            {
+                Debug.LogException(exception);
+                Finish(1);
+            }
+        }
+
         private static void StartChecks(bool expedition, bool preserveAuthored = false)
         {
             try

@@ -56,7 +56,7 @@ namespace GravityGame.Editor
             Debug.Log("PHASE_ONE_VALIDATION_PASSED: scene wiring, six gravity directions, probes, center fallback, six physics landings.");
         }
 
-        [MenuItem("GravityGame/Create Phase 1 Demo")]
+        [MenuItem("GravityGame/Legacy Prototypes/Create Phase 1 Demo")]
         public static void CreateDemo()
         {
             if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;

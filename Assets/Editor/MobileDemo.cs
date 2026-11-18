@@ -15,7 +15,7 @@ namespace GravityGame.Editor
 {
     public static class MobileDemo
     {
-        [MenuItem("GravityGame/Create Mobile Prototype")]
+        [MenuItem("GravityGame/Legacy Prototypes/Create Mobile Prototype")]
         public static void CreateDemo()
         {
             // Reuse the desktop demo's authored planets without changing its saved configuration.
@@ -72,7 +72,10 @@ namespace GravityGame.Editor
         // Invoke on a temporary project copy with Unity's -buildTarget Android argument.
         public static void BuildAndroid()
         {
-            CreateDemo();
+            var launchScenes = new List<string>();
+            foreach (var scene in EditorBuildSettings.scenes)
+                if (scene.enabled) launchScenes.Add(scene.path);
+            if (launchScenes.Count == 0) throw new Exception("Enable the authored launch scene in Build Settings before building.");
             PlayerSettings.productName = "GravityGame Prototype";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.gravitygame.prototype");
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
@@ -87,7 +90,7 @@ namespace GravityGame.Editor
             System.IO.Directory.CreateDirectory("Builds");
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
-                scenes = new[] { "Assets/Scenes/MobilePrototype.unity" },
+                scenes = launchScenes.ToArray(),
                 locationPathName = "Builds/GravityGame-Prototype.apk",
                 target = BuildTarget.Android,
                 options = BuildOptions.Development

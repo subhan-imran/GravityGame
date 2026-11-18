@@ -11,7 +11,7 @@ namespace GravityGame.Editor
     {
         public const string ScenePath = "Assets/Scenes/FirstExpedition.unity";
 
-        [MenuItem("GravityGame/Create First Expedition Level")]
+        [MenuItem("GravityGame/Legacy Prototypes/Create First Expedition Level")]
         public static void CreateLevel()
         {
             if (!Application.isBatchMode)

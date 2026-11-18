@@ -8,6 +8,8 @@ namespace GravityGame
         public StarCollection collection;
         public PlanetGravity planet;
         public Transform visual;
+        [Tooltip("Unique, stable identifier within a saved world. Leave blank in standalone levels.")]
+        public string persistentId;
         public bool Collected { get; private set; }
         private float animationTime;
 

@@ -7,6 +7,9 @@ namespace GravityGame
 
     public sealed class MobileTutorial : MonoBehaviour
     {
+        public GameUISettings settings;
+        [Tooltip("Used when no shared UI Settings asset is assigned.")]
+        public TutorialCopy copy = new TutorialCopy();
         public SphericalPlayer player;
         public GameObject card;
         public Text heading;
@@ -107,38 +110,41 @@ namespace GravityGame
             if (card == null) return;
             card.SetActive(Active);
             if (!Active) return;
+            var text = settings != null && settings.tutorial != null ? settings.tutorial : copy;
             switch (Step)
             {
                 case TutorialStep.Move:
-                    heading.text = "1 / 5  STRANDED";
-                    instructions.text = "Your flight is gone. Find a way home.\nUse the left stick. Push farther to run.";
+                    heading.text = text.moveHeading;
+                    instructions.text = text.move;
                     break;
                 case TutorialStep.FirstJump:
-                    heading.text = "2 / 5  JUMP 1";
-                    instructions.text = "Tap JUMP, then land.\nJumps 1 and 2 stay in gravity.";
+                    heading.text = text.firstHeading;
+                    instructions.text = text.first;
                     break;
                 case TutorialStep.SecondJump:
-                    heading.text = "3 / 5  JUMP 2";
+                    heading.text = text.secondHeading;
                     instructions.text = player.IsGrounded
-                        ? "Tap jump 2 within " + player.JumpWindowRemaining.ToString("0.0") + "s."
-                        : "Wait for the landing pulse.\nThen tap again within " + player.consecutiveJumpWindow.ToString("0.0") + " seconds.";
+                        ? Format(text.secondGrounded) : Format(text.secondAirborne);
                     break;
                 case TutorialStep.ThirdJump:
-                    heading.text = "4 / 5  JUMP 3";
+                    heading.text = text.thirdHeading;
                     instructions.text = player.IsGrounded
-                        ? "Aim at another planet.\nTap gold JUMP for 3!"
-                        : "Land again, then jump 3.\nAim at another planet.";
+                        ? text.thirdGrounded : text.thirdAirborne;
                     break;
                 case TutorialStep.Travel:
-                    heading.text = "5 / 5  TRAVEL";
-                    instructions.text = "Reach gravity to refill oxygen.\nBlue cape: safe. Red cape: empty.";
+                    heading.text = text.travelHeading;
+                    instructions.text = text.travel;
                     break;
                 case TutorialStep.Explore:
-                    heading.text = "READY TO EXPLORE";
-                    instructions.text = "Collect stars to chart your way home.\nLand anywhere. Retry keeps your stars.";
+                    heading.text = text.exploreHeading;
+                    instructions.text = text.explore;
                     break;
             }
         }
+
+        private string Format(string text) => (text ?? "")
+            .Replace("{remaining}", player.JumpWindowRemaining.ToString("0.0"))
+            .Replace("{window}", player.consecutiveJumpWindow.ToString("0.0"));
 
         private void OnDisable() => Unsubscribe();
         private void Unsubscribe()

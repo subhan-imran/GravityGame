@@ -8,8 +8,19 @@ namespace GravityGame
 {
     public sealed class MobileGameUI : MonoBehaviour
     {
+        [Header("Presentation")]
+        public GameUISettings settings;
+        [Tooltip("Use the saved Canvas as authored. Creation helpers cannot rebuild or reposition it.")]
+        public bool authoredLayout;
+        [Tooltip("Disable to edit tutorial size directly with its RectTransform.")]
+        public bool fitTutorialToSafeArea = true;
+        private GameUISettings Presentation => settings != null ? settings : GameUISettings.Defaults;
+        [Header("Scene bindings")]
         public SphericalPlayer player;
         public PlanetCamera cameraRig;
+        [Tooltip("Optional phone booth menu for an open-world level.")]
+        public BoothMenu boothMenu;
+        [Header("Canvas and panels")]
         [SerializeField] private Canvas canvas;
         [SerializeField] private RectTransform safeRoot;
         [SerializeField] private GameObject gameplay;
@@ -90,11 +101,30 @@ namespace GravityGame
 
         private void Awake() => Initialize();
 
+        public void Bind(SphericalPlayer controller, PlanetCamera camera)
+        {
+            player = controller;
+            cameraRig = camera;
+            foreach (var control in GetComponentsInChildren<MobileTouchControl>(true))
+            {
+                control.player = controller;
+                control.cameraRig = camera;
+            }
+            if (tutorial != null) { tutorial.player = controller; tutorial.settings = settings; }
+            if (feedback != null) { feedback.player = controller; feedback.cameraRig = camera; }
+        }
+
         public void Initialize()
         {
-            BuildUI();
+            if (canvas == null && !authoredLayout) BuildUI();
+            if (!HasRequiredReferences() || player == null || cameraRig == null)
+            {
+                Debug.LogError("Mobile interface has missing bindings. Assign the saved UI references in the Inspector and refresh the Level references.", this);
+                enabled = false;
+                return;
+            }
+            Bind(player, cameraRig);
             player.useMobileUI = true;
-            cameraRig.assisted = true;
             var module = eventSystem.GetComponent<InputSystemUIInputModule>();
             if (module == null) module = eventSystem.gameObject.AddComponent<InputSystemUIInputModule>();
             if (module.actionsAsset == null) module.AssignDefaultActions();
@@ -135,6 +165,8 @@ namespace GravityGame
 
         public void BuildUI()
         {
+            // Kept only for legacy prototype creation. Authored prefabs are never regenerated.
+            if (authoredLayout) return;
             if (canvas != null)
             {
                 BuildVictoryUI();
@@ -204,6 +236,16 @@ namespace GravityGame
                 eventSystem = events.GetComponent<EventSystem>();
             }
         }
+
+        public bool HasRequiredReferences() => canvas != null && safeRoot != null && gameplay != null &&
+            pausePanel != null && lossPanel != null && victoryPanel != null && joystick != null &&
+            lookArea != null && jumpControl != null && pauseButton != null && resumeButton != null &&
+            pauseRetryButton != null && lossRetryButton != null && playAgainButton != null &&
+            starCounter != null && oxygenFill != null && oxygenLabel != null && oxygenPercent != null &&
+            status != null && hint != null && jumpLabel != null && jumpImage != null && eventSystem != null &&
+            tutorial != null && tutorial.card != null && tutorial.heading != null && tutorial.instructions != null &&
+            feedback != null && feedback.toast != null && feedback.landingPulse != null &&
+            skipTutorialButton != null && replayTutorialButton != null;
 
         private void BuildOxygenUI()
         {
@@ -414,7 +456,9 @@ namespace GravityGame
             if (player == null || canvas == null) return;
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame && !player.HasLost && !player.HasWon)
             {
-                if (player.IsPaused) ResumeGame(); else PauseGame();
+                if (boothMenu != null && boothMenu.IsOpen) boothMenu.Close();
+                else if (player.IsPaused) ResumeGame();
+                else PauseGame();
             }
             if (lastRespawn != player.RespawnCount || wasLost != player.HasLost || wasWon != player.HasWon) ResetControls();
             lastRespawn = player.RespawnCount;
@@ -428,38 +472,48 @@ namespace GravityGame
         public void Refresh()
         {
             if (canvas == null || player == null) return;
+            var style = Presentation;
             bool playing = !player.HasLost && !player.HasWon && !player.IsPaused;
             gameplay.SetActive(playing);
-            pausePanel.SetActive(player.IsPaused && !player.HasLost && !player.HasWon);
+            pausePanel.SetActive(player.IsPaused && !player.HasLost && !player.HasWon &&
+                (boothMenu == null || !boothMenu.IsOpen));
             lossPanel.SetActive(player.HasLost && !player.HasWon);
             victoryPanel.SetActive(player.HasWon);
             status.text = player.IsInGravityField && player.planet != null
-                ? player.planet.name.ToUpperInvariant() + "  /  GRAVITY ACTIVE"
-                : "SPACE  /  NO GRAVITY";
+                ? Format(style.gravityStatus) : style.spaceStatus;
             float oxygen = player.OxygenFraction;
             oxygenFill.rectTransform.anchorMax = new Vector2(oxygen, 1f);
-            oxygenFill.color = oxygen <= 0.15f ? new Color(0.98f, 0.35f, 0.32f)
-                : oxygen <= 0.3f ? Gold : player.IsInGravityField ? new Color(0.3f, 0.9f, 0.65f) : new Color(0.36f, 0.85f, 0.95f);
-            oxygenLabel.text = oxygen <= 0f ? "OXYGEN EMPTY" : player.IsInGravityField ? "OXYGEN FULL"
-                : oxygen <= 0.3f ? "OXYGEN LOW" : "OXYGEN";
+            oxygenFill.color = oxygen <= style.criticalThreshold ? style.oxygenCritical
+                : oxygen <= style.lowThreshold ? style.oxygenLow : player.IsInGravityField ? style.oxygenFull : style.oxygenInSpace;
+            oxygenLabel.text = oxygen <= 0f ? style.oxygenEmptyLabel : player.IsInGravityField ? style.oxygenFullLabel
+                : oxygen <= style.lowThreshold ? style.oxygenLowLabel : style.oxygenLabel;
             oxygenPercent.text = Mathf.CeilToInt(oxygen * 100f) + "%";
             if (player.stars != null)
             {
-                string progress = "STARS  " + player.stars.CollectedCount + " / " + player.stars.TotalCount;
+                string progress = Format(style.starCounter);
                 if (starCounter.text != progress) starCounter.text = progress;
             }
-            hint.fontSize = 18;
             hint.text = player.IsGrounded
-                ? player.JumpChain > 0 ? "Jump again in " + player.JumpWindowRemaining.ToString("0.0") + "s  /  next " + player.NextJump + "/3"
-                    : "Chain 3 jumps to escape gravity - running is optional"
-                : player.JumpChain > 0 && player.JumpChain < 3 ? "Jump " + player.JumpChain + "/3 - tap again just after landing"
-                    : "Explore freely. Find all the stars to win.";
-            jumpImage.color = player.EscapeJumpReady ? Gold : Blue;
-            jumpLabel.text = player.EscapeJumpReady ? "ESCAPE\n3 / 3" : "JUMP\n" + player.NextJump + " / 3";
-            jumpLabel.color = player.EscapeJumpReady ? Navy : Color.white;
+                ? Format(player.JumpChain > 0 ? style.chainHint : style.groundedHint)
+                : Format(player.JumpChain > 0 && player.JumpChain < 3 ? style.airborneHint : style.exploreHint);
+            jumpImage.color = player.EscapeJumpReady ? style.jumpReady : style.jumpNormal;
+            jumpLabel.text = Format(player.EscapeJumpReady ? style.escapeLabel : style.jumpLabel);
+            jumpLabel.color = player.EscapeJumpReady ? style.jumpReadyText : style.jumpText;
             Vector2 screen = new Vector2(Screen.width, Screen.height);
             if (screen != lastScreen || Screen.safeArea != lastSafeArea) ApplySafeArea(Screen.safeArea, screen);
             FitTutorialCard();
+        }
+
+        private string Format(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+            if (text.Contains("{planet}")) text = text.Replace("{planet}", player.planet != null ? player.planet.name.ToUpperInvariant() : "");
+            if (text.Contains("{next}")) text = text.Replace("{next}", player.NextJump.ToString());
+            if (text.Contains("{stage}")) text = text.Replace("{stage}", player.JumpChain.ToString());
+            if (text.Contains("{remaining}")) text = text.Replace("{remaining}", player.JumpWindowRemaining.ToString("0.0"));
+            if (text.Contains("{count}")) text = text.Replace("{count}", player.stars != null ? player.stars.CollectedCount.ToString() : "0");
+            if (text.Contains("{total}")) text = text.Replace("{total}", player.stars != null ? player.stars.TotalCount.ToString() : "0");
+            return text;
         }
 
         public void ApplySafeArea(Rect area, Vector2 screen)
@@ -476,6 +530,7 @@ namespace GravityGame
 
         private void FitTutorialCard()
         {
+            if (!fitTutorialToSafeArea) return;
             if (tutorial == null || tutorial.card == null || safeRoot == null) return;
             var card = (RectTransform)tutorial.card.transform;
             float width = Mathf.Clamp(safeRoot.rect.width - 580f, 280f, 560f);

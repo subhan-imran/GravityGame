@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9a22ce67c66c7f243b81b652e432dc8e, type: 3}
+  m_Name: OpenWorldUI
+  m_EditorClassIdentifier: Assembly-CSharp::GravityGame.GameUISettings
+  jumpNormal: {r: 0.12, g: 0.58, b: 0.84, a: 1}
+  jumpReady: {r: 1, g: 0.78, b: 0.36, a: 1}
+  jumpText: {r: 1, g: 1, b: 1, a: 1}
+  jumpReadyText: {r: 0.035, g: 0.075, b: 0.14, a: 0.96}
+  oxygenFull: {r: 0.3, g: 0.9, b: 0.65, a: 1}
+  oxygenInSpace: {r: 0.36, g: 0.85, b: 0.95, a: 1}
+  oxygenLow: {r: 1, g: 0.78, b: 0.36, a: 1}
+  oxygenCritical: {r: 0.98, g: 0.35, b: 0.32, a: 1}
+  lowThreshold: 0.3
+  criticalThreshold: 0.15
+  gravityStatus: '{planet}  /  GRAVITY ACTIVE'
+  spaceStatus: SPACE  /  NO GRAVITY
+  starCounter: "FRAGMENTS\n{count} / {total}"
+  oxygenEmptyLabel: OXYGEN EMPTY
+  oxygenFullLabel: OXYGEN FULL
+  oxygenLowLabel: OXYGEN LOW
+  oxygenLabel: OXYGEN
+  groundedHint: Chain 3 jumps to escape gravity - running is optional
+  chainHint: Jump again in {remaining}s  /  next {next}/3
+  airborneHint: Jump {stage}/3 - tap again just after landing
+  exploreHint: Follow the gold beacons to cross between planets.
+  jumpLabel: 'JUMP
+
+    {next} / 3'
+  escapeLabel: 'ESCAPE
+
+    3 / 3'
+  tutorial:
+    moveHeading: 1 / 5  STRANDED
+    move: 'Your flight is gone. Find a way home.
+
+      Use the left stick. Push farther to run.'
+    firstHeading: 2 / 5  JUMP 1
+    first: 'Tap JUMP, then land.
+
+      Jumps 1 and 2 stay in gravity.'
+    secondHeading: 3 / 5  JUMP 2
+    secondGrounded: Tap jump 2 within {remaining}s.
+    secondAirborne: 'Wait for the landing pulse.
+
+      Then tap again within {window} seconds.'
+    thirdHeading: 4 / 5  JUMP 3
+    thirdGrounded: 'Aim at another planet.
+
+      Tap gold JUMP for 3!'
+    thirdAirborne: 'Land again, then jump 3.
+
+      Aim at another planet.'
+    travelHeading: 5 / 5  TRAVEL
+    travel: 'Reach gravity to refill oxygen.
+
+      Blue cape: safe. Red cape: empty.'
+    exploreHeading: READY TO EXPLORE
+    explore: 'Explore the planets and collect star fragments.
+
+      Use a phone booth to save.'

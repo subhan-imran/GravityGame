@@ -11,6 +11,13 @@ namespace GravityGame
         public Text toast;
         public Image landingPulse;
         public bool soundEnabled = true;
+        [Header("Messages and cue colors")]
+        public string jumpMessage = "JUMP {stage} / 3";
+        public string escapeMessage = "ESCAPE JUMP!";
+        public string readyMessage = "THIRD JUMP READY!";
+        public string secondMessage = "LANDED - TAP FOR JUMP 2";
+        public string landingMessage = "LANDED";
+        public string starMessage = "STAR {count} / {total}";
         public int JumpCueCount { get; private set; }
         public int LandingCueCount { get; private set; }
         public int StarCueCount { get; private set; }
@@ -25,8 +32,8 @@ namespace GravityGame
         private Vector3 burstPosition, burstUp;
         private float toastTime, pulseTime, burstTime;
         private int lastRespawn;
-        private static readonly Color Gold = new Color(1f, 0.78f, 0.36f);
-        private static readonly Color Cyan = new Color(0.35f, 0.9f, 1f);
+        public Color Gold = new Color(1f, 0.78f, 0.36f);
+        public Color Cyan = new Color(0.35f, 0.9f, 1f);
 
         public void Initialize()
         {
@@ -90,7 +97,7 @@ namespace GravityGame
         {
             SynchronizeRespawn();
             JumpCueCount++;
-            Show(stage == 3 ? "ESCAPE JUMP!" : "JUMP " + stage + " / 3", stage == 3 ? Gold : Cyan);
+            Show(stage == 3 ? escapeMessage : jumpMessage.Replace("{stage}", stage.ToString()), stage == 3 ? Gold : Cyan);
             Play(stage - 1);
         }
 
@@ -101,7 +108,7 @@ namespace GravityGame
             pulseTime = 0.45f;
             bool ready = player.EscapeJumpReady;
             if (landingPulse != null) landingPulse.color = ready ? Gold : Cyan;
-            Show(ready ? "THIRD JUMP READY!" : stage == 1 ? "LANDED - TAP FOR JUMP 2" : "LANDED", ready ? Gold : Cyan);
+            Show(ready ? readyMessage : stage == 1 ? secondMessage : landingMessage, ready ? Gold : Cyan);
             Play(ready ? 1 : 3);
         }
 
@@ -109,7 +116,8 @@ namespace GravityGame
         {
             SynchronizeRespawn();
             StarCueCount++;
-            Show("STAR " + player.stars.CollectedCount + " / " + player.stars.TotalCount, Gold);
+            Show(starMessage.Replace("{count}", player.stars.CollectedCount.ToString())
+                .Replace("{total}", player.stars.TotalCount.ToString()), Gold);
             Play(player.stars.AllCollected ? 5 : 4);
             PrepareSparks(star);
             burstPosition = star.transform.position;

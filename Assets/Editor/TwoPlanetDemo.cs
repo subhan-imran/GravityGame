@@ -17,7 +17,7 @@ namespace GravityGame.Editor
             Validate();
         }
 
-        [MenuItem("GravityGame/Create Two Planet Demo")]
+        [MenuItem("GravityGame/Legacy Prototypes/Create Two Planet Demo")]
         public static void CreateDemo()
         {
             if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;

@@ -44,6 +44,7 @@ GameObject:
   - component: {fileID: 8035015779064629626}
   - component: {fileID: 1391893105482053124}
   - component: {fileID: 6489096443622715767}
+  - component: {fileID: 8070358396192130125}
   m_Layer: 0
   m_Name: Cape fabric
   m_TagString: Untagged
@@ -137,3 +138,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GravityGame.OxygenCape
   fullOxygenBlue: {r: 0.035, g: 0.25, b: 0.95, a: 1}
   emptyOxygenRed: {r: 0.95, g: 0.035, b: 0.065, a: 1}
+--- !u!114 &8070358396192130125
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7858502291123181757}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6f6759679fefd648b176ed28b6cb4f0, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::GravityGame.CapeFlutter
